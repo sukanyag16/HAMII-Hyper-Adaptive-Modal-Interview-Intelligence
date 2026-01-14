@@ -1,0 +1,841 @@
+import { useState, useRef, useEffect, useCallback } from "react";
+import { useNavigate } from "react-router-dom";
+import { Button } from "@/components/ui/button";
+import { Card } from "@/components/ui/card";
+import { 
+  Upload, FileText, Loader2, ArrowLeft, ArrowRight, 
+  Camera, Mic, MicOff, Video, VideoOff, Square, 
+  CheckCircle, XCircle, ChevronRight, AlertCircle
+} from "lucide-react";
+import { useToast } from "@/components/ui/use-toast";
+import { supabase } from "@/integrations/supabase/client";
+import { VisionAnalyzer } from "@/lib/visionAnalysis";
+import { AudioAnalyzer } from "@/lib/audioAnalysis";
+import { SpeechRecognitionService, SpeechAnalyzer } from "@/lib/speechRecognition";
+import { ContentAnalyzer } from "@/lib/contentAnalysis";
+import { FusionAlgorithm } from "@/lib/fusionAlgorithm";
+import type { RawMetrics, FusedMetrics } from "@/lib/fusionAlgorithm";
+
+interface InterviewQuestion {
+  question: string;
+  category: string;
+  skillAssessed: string;
+  answerTip: string;
+}
+
+interface AnswerEvaluation {
+  contentScore: number;
+  deliveryScore: number;
+  overallScore: number;
+  strengths: string[];
+  improvements: string[];
+  sampleAnswer?: string;
+  overallFeedback: string;
+  deliveryFeedback?: string;
+}
+
+interface QuestionResult {
+  question: InterviewQuestion;
+  answer: string;
+  evaluation: AnswerEvaluation | null;
+  metrics: FusedMetrics | null;
+}
+
+const InterviewPractice = () => {
+  const navigate = useNavigate();
+  const { toast } = useToast();
+
+  // Resume upload state
+  const [resumeText, setResumeText] = useState("");
+  const [isParsingResume, setIsParsingResume] = useState(false);
+  const [candidateSummary, setCandidateSummary] = useState("");
+  
+  // Interview state
+  const [questions, setQuestions] = useState<InterviewQuestion[]>([]);
+  const [currentQuestionIndex, setCurrentQuestionIndex] = useState(0);
+  const [isGeneratingQuestions, setIsGeneratingQuestions] = useState(false);
+  const [interviewStarted, setInterviewStarted] = useState(false);
+  const [results, setResults] = useState<QuestionResult[]>([]);
+  const [showResults, setShowResults] = useState(false);
+  
+  // Recording state
+  const videoRef = useRef<HTMLVideoElement>(null);
+  const canvasRef = useRef<HTMLCanvasElement>(null);
+  const overlayCanvasRef = useRef<HTMLCanvasElement>(null);
+  const [isRecording, setIsRecording] = useState(false);
+  const [isCameraOn, setIsCameraOn] = useState(false);
+  const [isMicOn, setIsMicOn] = useState(false);
+  const [stream, setStream] = useState<MediaStream | null>(null);
+  const [recordingTime, setRecordingTime] = useState(0);
+  const [modelsLoaded, setModelsLoaded] = useState(false);
+  
+  // Metrics state
+  const [currentMetrics, setCurrentMetrics] = useState<FusedMetrics | null>(null);
+  const [transcript, setTranscript] = useState("");
+  const [interimTranscript, setInterimTranscript] = useState("");
+  const [isEvaluating, setIsEvaluating] = useState(false);
+  
+  // Refs
+  const visionAnalyzerRef = useRef<VisionAnalyzer | null>(null);
+  const audioAnalyzerRef = useRef<AudioAnalyzer | null>(null);
+  const speechRecognitionRef = useRef<SpeechRecognitionService | null>(null);
+  const speechAnalyzerRef = useRef<SpeechAnalyzer>(new SpeechAnalyzer());
+  const contentAnalyzerRef = useRef<ContentAnalyzer>(new ContentAnalyzer());
+  const fusionAlgorithmRef = useRef<FusionAlgorithm>(new FusionAlgorithm());
+  const animationFrameRef = useRef<number | null>(null);
+  const metricsHistoryRef = useRef<FusedMetrics[]>([]);
+
+  // Initialize models
+  useEffect(() => {
+    const init = async () => {
+      try {
+        console.log("Initializing AI models for interview...");
+        visionAnalyzerRef.current = new VisionAnalyzer();
+        await visionAnalyzerRef.current.initialize();
+        setModelsLoaded(true);
+        
+        const speechService = new SpeechRecognitionService();
+        if (speechService.isSupported()) {
+          speechRecognitionRef.current = speechService;
+          speechService.onTranscript((text, isFinal) => {
+            if (isFinal) {
+              setTranscript(prev => prev + ' ' + text);
+              setInterimTranscript('');
+            } else {
+              setInterimTranscript(text);
+            }
+          });
+        }
+      } catch (error) {
+        console.error("Model init error:", error);
+        setModelsLoaded(true);
+      }
+    };
+    init();
+
+    return () => {
+      if (visionAnalyzerRef.current) visionAnalyzerRef.current.cleanup();
+      if (audioAnalyzerRef.current) audioAnalyzerRef.current.cleanup();
+      if (speechRecognitionRef.current) speechRecognitionRef.current.stop();
+    };
+  }, []);
+
+  // Set fusion context to job-seekers
+  useEffect(() => {
+    fusionAlgorithmRef.current.setContext('job-seekers');
+  }, []);
+
+  const handleResumeUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (!file) return;
+
+    setIsParsingResume(true);
+    
+    try {
+      // For text files, read directly
+      if (file.type === 'text/plain' || file.name.endsWith('.txt')) {
+        const text = await file.text();
+        setResumeText(text);
+        toast({ title: "Resume Uploaded", description: "Text file parsed successfully" });
+      } 
+      // For other files, try to extract text
+      else {
+        const text = await file.text();
+        setResumeText(text);
+        toast({ title: "Resume Uploaded", description: "File content extracted" });
+      }
+    } catch (error) {
+      console.error("Error parsing resume:", error);
+      toast({ 
+        title: "Parse Error", 
+        description: "Could not parse the file. Try a .txt file.", 
+        variant: "destructive" 
+      });
+    } finally {
+      setIsParsingResume(false);
+    }
+  };
+
+  const generateQuestions = async () => {
+    if (!resumeText.trim()) {
+      toast({ title: "No Resume", description: "Please upload your resume first", variant: "destructive" });
+      return;
+    }
+
+    setIsGeneratingQuestions(true);
+    
+    try {
+      const { data, error } = await supabase.functions.invoke('generate-interview-questions', {
+        body: { resumeText, numberOfQuestions: 5 }
+      });
+
+      if (error) throw error;
+      
+      if (data.questions) {
+        setQuestions(data.questions);
+        setCandidateSummary(data.candidateSummary || "");
+        toast({ title: "Questions Generated", description: `${data.questions.length} personalized questions ready!` });
+      }
+    } catch (error: any) {
+      console.error("Error generating questions:", error);
+      toast({ 
+        title: "Generation Failed", 
+        description: error.message || "Could not generate questions", 
+        variant: "destructive" 
+      });
+    } finally {
+      setIsGeneratingQuestions(false);
+    }
+  };
+
+  const startCamera = async () => {
+    try {
+      const mediaStream = await navigator.mediaDevices.getUserMedia({
+        video: { width: 1280, height: 720 },
+        audio: true,
+      });
+      if (videoRef.current) videoRef.current.srcObject = mediaStream;
+      setStream(mediaStream);
+      setIsCameraOn(true);
+      setIsMicOn(true);
+    } catch (error) {
+      console.error("Camera error:", error);
+      toast({ title: "Camera Access Denied", description: "Please allow access", variant: "destructive" });
+    }
+  };
+
+  const stopCamera = () => {
+    if (stream) {
+      stream.getTracks().forEach(track => track.stop());
+      setStream(null);
+      setIsCameraOn(false);
+      setIsMicOn(false);
+    }
+  };
+
+  const toggleMicrophone = () => {
+    if (stream) {
+      stream.getAudioTracks().forEach(track => { track.enabled = !track.enabled; });
+      setIsMicOn(!isMicOn);
+    }
+  };
+
+  const startRecording = () => {
+    if (!isCameraOn || !stream) return;
+
+    setIsRecording(true);
+    setRecordingTime(0);
+    setTranscript("");
+    setInterimTranscript("");
+    metricsHistoryRef.current = [];
+    speechAnalyzerRef.current.reset();
+    fusionAlgorithmRef.current.reset();
+
+    audioAnalyzerRef.current = new AudioAnalyzer();
+    audioAnalyzerRef.current.initialize(stream);
+
+    if (speechRecognitionRef.current) {
+      speechRecognitionRef.current.start();
+    }
+
+    // Start analysis loop
+    const analyzeFrame = async () => {
+      if (!videoRef.current || !isRecording) return;
+      
+      const video = videoRef.current;
+      if (video.readyState !== video.HAVE_ENOUGH_DATA) {
+        animationFrameRef.current = requestAnimationFrame(analyzeFrame);
+        return;
+      }
+
+      try {
+        const timestamp = performance.now();
+        const visionMetrics = visionAnalyzerRef.current
+          ? await visionAnalyzerRef.current.analyzeFrame(video, timestamp)
+          : null;
+        
+        const audioFeatures = audioAnalyzerRef.current?.getAudioFeatures() || null;
+        const speechMetrics = speechAnalyzerRef.current.getMetrics();
+
+        if (visionMetrics && audioFeatures) {
+          const rawMetrics: RawMetrics = {
+            eyeContact: visionMetrics.face.eyeContact,
+            emotion: visionMetrics.face.emotion,
+            emotionConfidence: visionMetrics.face.emotionConfidence,
+            postureScore: visionMetrics.posture.postureScore,
+            shoulderAlignment: visionMetrics.posture.shoulderAlignment,
+            headPosition: visionMetrics.posture.headPosition,
+            gestureVariety: visionMetrics.gestures.gestureVariety,
+            handVisibility: visionMetrics.gestures.handVisibility,
+            pitch: audioFeatures.pitch,
+            pitchVariation: audioFeatures.pitchVariation,
+            volume: audioFeatures.volume,
+            volumeVariation: audioFeatures.volumeVariation,
+            clarity: audioFeatures.clarity,
+            energy: audioFeatures.energy,
+            wordsPerMinute: speechMetrics.wordsPerMinute,
+            fillerCount: speechMetrics.fillerCount,
+            fillerPercentage: speechMetrics.fillerPercentage,
+            clarityScore: speechMetrics.clarityScore,
+            fluencyScore: speechMetrics.fluencyScore,
+            articulationScore: speechMetrics.articulationScore,
+          };
+
+          const fused = fusionAlgorithmRef.current.fuse(rawMetrics);
+          setCurrentMetrics(fused);
+          metricsHistoryRef.current.push(fused);
+        }
+      } catch (error) {
+        console.error("Analysis error:", error);
+      }
+
+      animationFrameRef.current = requestAnimationFrame(analyzeFrame);
+    };
+
+    analyzeFrame();
+  };
+
+  const stopRecording = async () => {
+    setIsRecording(false);
+    if (speechRecognitionRef.current) speechRecognitionRef.current.stop();
+    if (audioAnalyzerRef.current) audioAnalyzerRef.current.cleanup();
+    if (animationFrameRef.current) cancelAnimationFrame(animationFrameRef.current);
+
+    // Calculate average metrics
+    const avgMetrics = calculateAverageMetrics();
+    
+    // Evaluate answer
+    await evaluateAnswer(avgMetrics);
+  };
+
+  const calculateAverageMetrics = (): FusedMetrics => {
+    const history = metricsHistoryRef.current;
+    if (history.length === 0) {
+      return {
+        eyeContact: 0, posture: 0, bodyLanguage: 0, facialExpression: 0,
+        voiceQuality: 0, speechClarity: 0, contentEngagement: 0,
+        overallScore: 0, confidence: 0
+      };
+    }
+
+    const avg = (key: keyof FusedMetrics) => 
+      Math.round(history.reduce((sum, m) => sum + (m[key] as number), 0) / history.length);
+
+    return {
+      eyeContact: avg('eyeContact'),
+      posture: avg('posture'),
+      bodyLanguage: avg('bodyLanguage'),
+      facialExpression: avg('facialExpression'),
+      voiceQuality: avg('voiceQuality'),
+      speechClarity: avg('speechClarity'),
+      contentEngagement: avg('contentEngagement'),
+      overallScore: avg('overallScore'),
+      confidence: avg('confidence')
+    };
+  };
+
+  const evaluateAnswer = async (fusionMetrics: FusedMetrics) => {
+    const currentQuestion = questions[currentQuestionIndex];
+    const answer = transcript.trim();
+    
+    if (!answer) {
+      toast({ title: "No Answer", description: "No speech was detected", variant: "destructive" });
+      return;
+    }
+
+    setIsEvaluating(true);
+
+    try {
+      const { data, error } = await supabase.functions.invoke('evaluate-interview-answer', {
+        body: {
+          question: currentQuestion.question,
+          answer,
+          category: currentQuestion.category,
+          skillAssessed: currentQuestion.skillAssessed,
+          fusionMetrics
+        }
+      });
+
+      if (error) throw error;
+
+      const result: QuestionResult = {
+        question: currentQuestion,
+        answer,
+        evaluation: data,
+        metrics: fusionMetrics
+      };
+
+      setResults(prev => [...prev, result]);
+      
+      toast({ 
+        title: "Answer Evaluated", 
+        description: `Score: ${data.overallScore}/100` 
+      });
+
+    } catch (error: any) {
+      console.error("Evaluation error:", error);
+      
+      // Save result without AI evaluation
+      setResults(prev => [...prev, {
+        question: currentQuestion,
+        answer,
+        evaluation: null,
+        metrics: fusionMetrics
+      }]);
+      
+      toast({ 
+        title: "Evaluation Error", 
+        description: error.message || "Could not evaluate answer", 
+        variant: "destructive" 
+      });
+    } finally {
+      setIsEvaluating(false);
+    }
+  };
+
+  const nextQuestion = () => {
+    if (currentQuestionIndex < questions.length - 1) {
+      setCurrentQuestionIndex(prev => prev + 1);
+      setTranscript("");
+      setInterimTranscript("");
+      metricsHistoryRef.current = [];
+    } else {
+      setShowResults(true);
+      stopCamera();
+    }
+  };
+
+  const formatTime = (seconds: number) => {
+    const mins = Math.floor(seconds / 60).toString().padStart(2, '0');
+    const secs = (seconds % 60).toString().padStart(2, '0');
+    return `${mins}:${secs}`;
+  };
+
+  // Timer
+  useEffect(() => {
+    let interval: NodeJS.Timeout;
+    if (isRecording) {
+      interval = setInterval(() => setRecordingTime(prev => prev + 1), 1000);
+    }
+    return () => clearInterval(interval);
+  }, [isRecording]);
+
+  // Results View
+  if (showResults) {
+    const avgScore = results.length > 0
+      ? Math.round(results.reduce((sum, r) => sum + (r.evaluation?.overallScore || 0), 0) / results.length)
+      : 0;
+
+    return (
+      <div className="min-h-screen bg-gradient-hero p-4">
+        <div className="container mx-auto max-w-4xl">
+          <Button variant="ghost" onClick={() => navigate("/")} className="mb-6">
+            <ArrowLeft className="w-4 h-4 mr-2" /> Back to Home
+          </Button>
+
+          <Card className="p-8 bg-gradient-card border-border mb-6">
+            <h2 className="text-3xl font-bold text-center mb-2">Interview Complete!</h2>
+            <p className="text-center text-muted-foreground mb-6">Here's your performance summary</p>
+            
+            <div className="text-center mb-8">
+              <div className="text-6xl font-bold bg-gradient-primary bg-clip-text text-transparent mb-2">
+                {avgScore}%
+              </div>
+              <p className="text-muted-foreground">Average Score</p>
+            </div>
+
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-8">
+              {results.length > 0 && results[0].metrics && (
+                <>
+                  <div className="text-center p-4 bg-background/50 rounded-lg">
+                    <p className="text-2xl font-bold text-primary">
+                      {Math.round(results.reduce((s, r) => s + (r.metrics?.eyeContact || 0), 0) / results.length)}%
+                    </p>
+                    <p className="text-xs text-muted-foreground">Eye Contact</p>
+                  </div>
+                  <div className="text-center p-4 bg-background/50 rounded-lg">
+                    <p className="text-2xl font-bold text-primary">
+                      {Math.round(results.reduce((s, r) => s + (r.metrics?.posture || 0), 0) / results.length)}%
+                    </p>
+                    <p className="text-xs text-muted-foreground">Posture</p>
+                  </div>
+                  <div className="text-center p-4 bg-background/50 rounded-lg">
+                    <p className="text-2xl font-bold text-primary">
+                      {Math.round(results.reduce((s, r) => s + (r.metrics?.speechClarity || 0), 0) / results.length)}%
+                    </p>
+                    <p className="text-xs text-muted-foreground">Clarity</p>
+                  </div>
+                  <div className="text-center p-4 bg-background/50 rounded-lg">
+                    <p className="text-2xl font-bold text-primary">
+                      {Math.round(results.reduce((s, r) => s + (r.metrics?.bodyLanguage || 0), 0) / results.length)}%
+                    </p>
+                    <p className="text-xs text-muted-foreground">Body Language</p>
+                  </div>
+                </>
+              )}
+            </div>
+          </Card>
+
+          {results.map((result, idx) => (
+            <Card key={idx} className="p-6 bg-gradient-card border-border mb-4">
+              <div className="flex items-start justify-between mb-4">
+                <div>
+                  <span className="text-xs px-2 py-1 rounded bg-primary/20 text-primary">
+                    {result.question.category}
+                  </span>
+                  <h3 className="text-lg font-semibold mt-2">Q{idx + 1}: {result.question.question}</h3>
+                </div>
+                <div className="text-right">
+                  <p className="text-2xl font-bold text-primary">
+                    {result.evaluation?.overallScore || 0}%
+                  </p>
+                  <p className="text-xs text-muted-foreground">Score</p>
+                </div>
+              </div>
+
+              <div className="bg-background/50 p-4 rounded-lg mb-4">
+                <p className="text-sm text-muted-foreground mb-1">Your Answer:</p>
+                <p className="text-sm">{result.answer || "No answer recorded"}</p>
+              </div>
+
+              {result.evaluation && (
+                <div className="space-y-4">
+                  <div className="grid grid-cols-3 gap-4">
+                    <div className="text-center">
+                      <p className="text-lg font-bold text-green-500">{result.evaluation.contentScore}%</p>
+                      <p className="text-xs text-muted-foreground">Content</p>
+                    </div>
+                    <div className="text-center">
+                      <p className="text-lg font-bold text-blue-500">{result.evaluation.deliveryScore}%</p>
+                      <p className="text-xs text-muted-foreground">Delivery</p>
+                    </div>
+                    <div className="text-center">
+                      <p className="text-lg font-bold text-primary">{result.evaluation.overallScore}%</p>
+                      <p className="text-xs text-muted-foreground">Overall</p>
+                    </div>
+                  </div>
+
+                  {result.evaluation.strengths.length > 0 && (
+                    <div>
+                      <p className="text-sm font-semibold text-green-500 mb-2 flex items-center">
+                        <CheckCircle className="w-4 h-4 mr-1" /> Strengths
+                      </p>
+                      <ul className="text-sm text-muted-foreground list-disc list-inside">
+                        {result.evaluation.strengths.map((s, i) => <li key={i}>{s}</li>)}
+                      </ul>
+                    </div>
+                  )}
+
+                  {result.evaluation.improvements.length > 0 && (
+                    <div>
+                      <p className="text-sm font-semibold text-orange-500 mb-2 flex items-center">
+                        <AlertCircle className="w-4 h-4 mr-1" /> Areas to Improve
+                      </p>
+                      <ul className="text-sm text-muted-foreground list-disc list-inside">
+                        {result.evaluation.improvements.map((s, i) => <li key={i}>{s}</li>)}
+                      </ul>
+                    </div>
+                  )}
+
+                  <div className="bg-primary/10 p-4 rounded-lg">
+                    <p className="text-sm">{result.evaluation.overallFeedback}</p>
+                  </div>
+                </div>
+              )}
+            </Card>
+          ))}
+
+          <div className="flex justify-center gap-4 mt-8">
+            <Button onClick={() => navigate("/")}>
+              Back to Home
+            </Button>
+            <Button variant="outline" onClick={() => window.location.reload()}>
+              Practice Again
+            </Button>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  // Resume Upload View
+  if (!questions.length) {
+    return (
+      <div className="min-h-screen bg-gradient-hero p-4 flex items-center justify-center">
+        <div className="container mx-auto max-w-2xl">
+          <Button variant="ghost" onClick={() => navigate("/practice")} className="mb-6">
+            <ArrowLeft className="w-4 h-4 mr-2" /> Back to Practice
+          </Button>
+
+          <Card className="p-8 bg-gradient-card border-border">
+            <div className="text-center mb-8">
+              <h1 className="text-3xl font-bold mb-2 bg-gradient-primary bg-clip-text text-transparent">
+                Interview Practice
+              </h1>
+              <p className="text-muted-foreground">
+                Upload your resume to get personalized interview questions
+              </p>
+            </div>
+
+            <div className="space-y-6">
+              <div className="border-2 border-dashed border-border rounded-lg p-8 text-center hover:border-primary/50 transition-colors">
+                <input
+                  type="file"
+                  accept=".txt,.pdf,.doc,.docx"
+                  onChange={handleResumeUpload}
+                  className="hidden"
+                  id="resume-upload"
+                  disabled={isParsingResume}
+                />
+                <label htmlFor="resume-upload" className="cursor-pointer">
+                  {isParsingResume ? (
+                    <Loader2 className="w-12 h-12 mx-auto mb-4 text-primary animate-spin" />
+                  ) : (
+                    <Upload className="w-12 h-12 mx-auto mb-4 text-muted-foreground" />
+                  )}
+                  <p className="text-lg font-semibold mb-1">
+                    {isParsingResume ? "Parsing Resume..." : "Upload Your Resume"}
+                  </p>
+                  <p className="text-sm text-muted-foreground">
+                    Supports .txt files (PDF support coming soon)
+                  </p>
+                </label>
+              </div>
+
+              {resumeText && (
+                <div className="bg-background/50 p-4 rounded-lg">
+                  <div className="flex items-center gap-2 mb-2">
+                    <FileText className="w-5 h-5 text-primary" />
+                    <span className="font-semibold">Resume Loaded</span>
+                    <CheckCircle className="w-4 h-4 text-green-500" />
+                  </div>
+                  <p className="text-sm text-muted-foreground">
+                    {resumeText.length} characters • Ready to generate questions
+                  </p>
+                </div>
+              )}
+
+              <div className="text-center">
+                <p className="text-sm text-muted-foreground mb-4">Or paste your resume text:</p>
+                <textarea
+                  className="w-full h-32 p-4 rounded-lg bg-background border border-border resize-none focus:outline-none focus:ring-2 focus:ring-primary"
+                  placeholder="Paste your resume content here..."
+                  value={resumeText}
+                  onChange={(e) => setResumeText(e.target.value)}
+                />
+              </div>
+
+              <Button
+                size="lg"
+                className="w-full bg-primary hover:bg-primary/90"
+                onClick={generateQuestions}
+                disabled={!resumeText.trim() || isGeneratingQuestions}
+              >
+                {isGeneratingQuestions ? (
+                  <>
+                    <Loader2 className="w-5 h-5 mr-2 animate-spin" />
+                    Generating Questions...
+                  </>
+                ) : (
+                  <>
+                    Generate Interview Questions
+                    <ChevronRight className="w-5 h-5 ml-2" />
+                  </>
+                )}
+              </Button>
+            </div>
+          </Card>
+        </div>
+      </div>
+    );
+  }
+
+  // Interview Practice View
+  const currentQuestion = questions[currentQuestionIndex];
+  const hasAnsweredCurrent = results.length > currentQuestionIndex;
+
+  return (
+    <div className="min-h-screen bg-gradient-hero p-4">
+      <div className="container mx-auto max-w-7xl">
+        <div className="flex items-center justify-between mb-6">
+          <Button variant="ghost" onClick={() => navigate("/practice")}>
+            <ArrowLeft className="w-4 h-4 mr-2" /> Exit Interview
+          </Button>
+          <div className="text-sm text-muted-foreground">
+            Question {currentQuestionIndex + 1} of {questions.length}
+          </div>
+        </div>
+
+        {candidateSummary && !interviewStarted && (
+          <Card className="p-6 bg-gradient-card border-border mb-6">
+            <h3 className="font-semibold mb-2">Candidate Profile Summary</h3>
+            <p className="text-sm text-muted-foreground">{candidateSummary}</p>
+            <Button className="mt-4" onClick={() => setInterviewStarted(true)}>
+              Start Interview
+              <ChevronRight className="w-4 h-4 ml-2" />
+            </Button>
+          </Card>
+        )}
+
+        {interviewStarted && (
+          <div className="grid lg:grid-cols-3 gap-6">
+            {/* Video Area */}
+            <div className="lg:col-span-2">
+              <Card className="p-6 bg-gradient-card border-border">
+                {/* Question Display */}
+                <div className="mb-4 p-4 bg-primary/10 rounded-lg">
+                  <div className="flex items-center gap-2 mb-2">
+                    <span className="text-xs px-2 py-1 rounded bg-primary/20 text-primary">
+                      {currentQuestion.category}
+                    </span>
+                    <span className="text-xs text-muted-foreground">
+                      Assessing: {currentQuestion.skillAssessed}
+                    </span>
+                  </div>
+                  <h2 className="text-lg font-semibold">{currentQuestion.question}</h2>
+                  <p className="text-xs text-muted-foreground mt-2">
+                    💡 Tip: {currentQuestion.answerTip}
+                  </p>
+                </div>
+
+                {/* Video Preview */}
+                <div className="relative aspect-video bg-background rounded-lg overflow-hidden mb-4">
+                  <video ref={videoRef} autoPlay playsInline muted className="w-full h-full object-cover" />
+                  <canvas ref={canvasRef} className="hidden" />
+                  <canvas ref={overlayCanvasRef} className="absolute inset-0 w-full h-full pointer-events-none" />
+
+                  {!isCameraOn && (
+                    <div className="absolute inset-0 flex items-center justify-center bg-background/90">
+                      <div className="text-center">
+                        <Camera className="w-16 h-16 mx-auto mb-4 text-muted-foreground" />
+                        <p className="text-muted-foreground">Turn on camera to start</p>
+                      </div>
+                    </div>
+                  )}
+
+                  {isRecording && (
+                    <>
+                      <div className="absolute top-4 left-4 flex items-center gap-2 px-3 py-2 bg-red-500/90 rounded-full">
+                        <div className="w-2 h-2 rounded-full bg-white animate-pulse" />
+                        <span className="text-sm font-medium text-white">{formatTime(recordingTime)}</span>
+                      </div>
+                      {(transcript || interimTranscript) && (
+                        <div className="absolute bottom-4 left-4 right-4 px-4 py-3 bg-background/90 rounded-lg max-h-24 overflow-y-auto">
+                          <p className="text-sm">
+                            {transcript} <span className="text-muted-foreground italic">{interimTranscript}</span>
+                          </p>
+                        </div>
+                      )}
+                    </>
+                  )}
+                </div>
+
+                {/* Controls */}
+                <div className="flex flex-wrap justify-center gap-4">
+                  {!isCameraOn ? (
+                    <Button size="lg" onClick={startCamera}>
+                      <Camera className="w-5 h-5 mr-2" /> Turn On Camera
+                    </Button>
+                  ) : (
+                    <>
+                      <Button size="lg" variant="outline" onClick={stopCamera}>
+                        <VideoOff className="w-5 h-5 mr-2" /> Stop Camera
+                      </Button>
+                      <Button size="lg" variant="outline" onClick={toggleMicrophone}>
+                        {isMicOn ? <Mic className="w-5 h-5 mr-2" /> : <MicOff className="w-5 h-5 mr-2" />}
+                        {isMicOn ? "Mic On" : "Mic Off"}
+                      </Button>
+
+                      {!isRecording && !hasAnsweredCurrent ? (
+                        <Button size="lg" onClick={startRecording} disabled={!modelsLoaded || isEvaluating}>
+                          <Video className="w-5 h-5 mr-2" />
+                          {modelsLoaded ? "Start Answer" : "Loading..."}
+                        </Button>
+                      ) : isRecording ? (
+                        <Button size="lg" variant="destructive" onClick={stopRecording}>
+                          <Square className="w-5 h-5 mr-2" /> Submit Answer
+                        </Button>
+                      ) : (
+                        <Button size="lg" onClick={nextQuestion}>
+                          {currentQuestionIndex < questions.length - 1 ? (
+                            <>Next Question <ArrowRight className="w-5 h-5 ml-2" /></>
+                          ) : (
+                            <>View Results <CheckCircle className="w-5 h-5 ml-2" /></>
+                          )}
+                        </Button>
+                      )}
+                    </>
+                  )}
+                </div>
+              </Card>
+            </div>
+
+            {/* Metrics Panel */}
+            <div>
+              <Card className="p-6 bg-gradient-card border-border">
+                <h3 className="text-lg font-bold mb-4">Real-Time Metrics</h3>
+
+                {isEvaluating ? (
+                  <div className="text-center py-8">
+                    <Loader2 className="w-12 h-12 mx-auto mb-3 text-primary animate-spin" />
+                    <p className="text-sm text-muted-foreground">Evaluating your answer...</p>
+                  </div>
+                ) : isRecording && currentMetrics ? (
+                  <div className="space-y-4">
+                    {(['eyeContact', 'posture', 'speechClarity', 'bodyLanguage', 'voiceQuality'] as const).map(key => (
+                      <div key={key}>
+                        <div className="flex justify-between mb-1">
+                          <span className="text-sm text-muted-foreground capitalize">
+                            {key.replace(/([A-Z])/g, ' $1').trim()}
+                          </span>
+                          <span className="text-sm font-bold text-primary">{currentMetrics[key]}%</span>
+                        </div>
+                        <div className="h-2 bg-secondary rounded-full overflow-hidden">
+                          <div 
+                            className="h-full bg-gradient-primary transition-all duration-300" 
+                            style={{ width: `${currentMetrics[key]}%` }} 
+                          />
+                        </div>
+                      </div>
+                    ))}
+                    <div className="pt-4 border-t border-border text-center">
+                      <p className="text-xs text-muted-foreground mb-1">Overall Score</p>
+                      <p className="text-3xl font-bold text-primary">{currentMetrics.overallScore}%</p>
+                    </div>
+                  </div>
+                ) : (
+                  <div className="text-center py-8">
+                    <p className="text-sm text-muted-foreground">
+                      {hasAnsweredCurrent ? "Answer submitted!" : "Start answering to see metrics"}
+                    </p>
+                  </div>
+                )}
+
+                {/* Progress */}
+                <div className="mt-6 pt-4 border-t border-border">
+                  <p className="text-xs text-muted-foreground mb-2">Progress</p>
+                  <div className="flex gap-1">
+                    {questions.map((_, idx) => (
+                      <div
+                        key={idx}
+                        className={`flex-1 h-2 rounded-full ${
+                          idx < results.length
+                            ? 'bg-green-500'
+                            : idx === currentQuestionIndex
+                            ? 'bg-primary'
+                            : 'bg-secondary'
+                        }`}
+                      />
+                    ))}
+                  </div>
+                </div>
+              </Card>
+            </div>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+};
+
+export default InterviewPractice;

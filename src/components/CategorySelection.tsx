@@ -1,6 +1,7 @@
+import { useNavigate } from "react-router-dom";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Briefcase, Users, Megaphone, ShoppingCart, Video, GraduationCap, ChevronRight } from "lucide-react";
+import { Briefcase, Users, Megaphone, ShoppingCart, Video, GraduationCap, ChevronRight, FileText } from "lucide-react";
 
 export type UserCategory = 
   | "job-seekers"
@@ -68,6 +69,8 @@ interface CategorySelectionProps {
 }
 
 const CategorySelection = ({ onSelect }: CategorySelectionProps) => {
+  const navigate = useNavigate();
+  
   return (
     <div className="min-h-screen bg-gradient-hero p-4 flex items-center justify-center">
       <div className="container mx-auto max-w-6xl">
@@ -79,6 +82,30 @@ const CategorySelection = ({ onSelect }: CategorySelectionProps) => {
             Select your category to get personalized AI analysis optimized for your specific communication needs
           </p>
         </div>
+
+        {/* Interview Practice Card - Featured */}
+        <Card
+          className="p-6 bg-gradient-to-r from-primary/20 to-primary/5 border-primary/50 mb-6 cursor-pointer group hover:border-primary transition-all"
+          onClick={() => navigate("/interview")}
+        >
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-4">
+              <div className="w-14 h-14 rounded-lg bg-gradient-primary flex items-center justify-center group-hover:scale-110 transition-transform">
+                <FileText className="w-7 h-7 text-white" />
+              </div>
+              <div>
+                <h3 className="text-xl font-bold text-foreground flex items-center gap-2">
+                  Resume-Based Interview Practice
+                  <span className="text-xs px-2 py-1 rounded-full bg-primary text-white">NEW</span>
+                </h3>
+                <p className="text-sm text-muted-foreground">
+                  Upload your resume and get personalized interview questions with AI-powered feedback
+                </p>
+              </div>
+            </div>
+            <ChevronRight className="w-6 h-6 text-primary group-hover:translate-x-1 transition-transform" />
+          </div>
+        </Card>
 
         <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-4">
           {categories.map((category) => {
