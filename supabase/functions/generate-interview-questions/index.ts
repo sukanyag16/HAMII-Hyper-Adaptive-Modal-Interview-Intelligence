@@ -33,41 +33,54 @@ serve(async (req) => {
       );
     }
 
-    const systemPrompt = `You are an expert HR interviewer and career coach. Your task is to analyze a candidate's resume and generate insightful, personalized interview questions that are commonly asked in real job interviews.
+    const systemPrompt = `You are an expert HR interviewer. Your task is to analyze a candidate's resume using a structured extraction algorithm and generate interview questions ONLY based on information explicitly present in the resume.
 
-Generate exactly ${numberOfQuestions} interview questions based on the resume provided. 
+## EXTRACTION ALGORITHM (Follow this strictly):
 
-IMPORTANT - ALWAYS include these essential questions in order:
-1. FIRST question MUST be an introduction question like "Tell me about yourself" or "Walk me through your background"
-2. SECOND question MUST be about their projects/work experience mentioned in the resume like "Tell me about the projects you've worked on" or "Describe a significant project from your experience"
-3. Remaining questions should cover:
-   - Technical skills mentioned in the resume
-   - Behavioral scenarios (STAR format)
-   - Problem-solving abilities
-   - Career goals and cultural fit
+STEP 1 - Extract these fields from the resume:
+- NAME: Candidate's name
+- SKILLS: List all technical skills, tools, frameworks, languages mentioned
+- PROJECTS: List all project names and their descriptions
+- EXPERIENCE: List all job titles, companies, and responsibilities
+- EDUCATION: Degrees, institutions, certifications
+- ACHIEVEMENTS: Quantifiable accomplishments, awards, metrics
 
-The questions should:
-- Be specific to the candidate's actual experience, skills, and background from the resume
-- Reference specific technologies, companies, or achievements mentioned
-- Include both standard interview questions and personalized ones
-- Test communication skills, technical knowledge, and soft skills
+STEP 2 - Generate questions using ONLY extracted information:
+- Question 1: Introduction question referencing their background
+- Question 2: Ask about a SPECIFIC project mentioned in the resume (use exact project name)
+- Question 3-${numberOfQuestions}: Ask about SPECIFIC skills, experiences, or achievements extracted
 
-For each question, also provide:
-- The category (Introduction, Experience-based, Technical, Behavioral, Situational, or Soft Skills)
-- The skill or competency being assessed
-- A brief tip for what makes a good answer (mention STAR method for behavioral questions)`;
+## STRICT RULES:
+- NEVER invent or assume information not in the resume
+- ALWAYS reference specific items (project names, company names, technologies) from the resume
+- If the resume mentions "React", ask about React specifically, not generic frontend
+- If resume mentions "XYZ Company", reference that company in the question
+- Each question MUST quote or reference something directly from the resume
 
-    const userPrompt = `Analyze this resume and generate ${numberOfQuestions} personalized interview questions. 
+## OUTPUT FORMAT:
+For each question provide:
+- category: Introduction | Experience-based | Technical | Behavioral | Situational | Soft Skills
+- skillAssessed: The specific skill/competency being tested (from resume)
+- answerTip: Brief guidance (use STAR method for behavioral questions)`;
 
-MANDATORY: 
-- Question 1 MUST be an introduction/self-introduction question
-- Question 2 MUST be about their projects and work experience
-- Remaining questions should be specific to the skills, technologies, and experience mentioned
-
-RESUME:
+    const userPrompt = `RESUME TO ANALYZE:
+---
 ${resumeText}
+---
 
-Generate questions that a real interviewer would ask based on this specific resume.`;
+TASK: Generate exactly ${numberOfQuestions} interview questions.
+
+MANDATORY STRUCTURE:
+1. Question 1: Introduction - "Tell me about yourself" tailored to their specific background
+2. Question 2: Project-specific - Ask about a SPECIFIC project mentioned in the resume by name
+3. Questions 3-${numberOfQuestions}: Must each reference a SPECIFIC skill, technology, company, or achievement from the resume
+
+VALIDATION CHECKLIST (ensure each question passes):
+✓ Does this question reference something explicitly written in the resume?
+✓ Am I using the exact names/terms from the resume?
+✓ Would this question make sense ONLY for this specific candidate?
+
+DO NOT generate generic questions. Every question must be traceable to resume content.`;
 
     const response = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
       method: "POST",
