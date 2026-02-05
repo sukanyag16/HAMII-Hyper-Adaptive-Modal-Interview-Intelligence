@@ -11,3 +11,6 @@ verify_jwt = false
 
 [functions.summarize-interview-session]
 verify_jwt = false
+ 
+ [functions.evaluate-hr-answer]
+ verify_jwt = false
