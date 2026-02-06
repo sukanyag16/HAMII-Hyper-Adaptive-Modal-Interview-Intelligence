@@ -550,18 +550,68 @@
      return `${mins}:${secs}`;
    };
  
-   const getEmotionBadgeColor = (emotion?: string) => {
-     switch (emotion?.toLowerCase()) {
-       case 'happy':
-       case 'confident':
-         return 'bg-accent/20 text-accent';
-       case 'nervous':
-       case 'stressed':
-         return 'bg-destructive/20 text-destructive';
-       default:
-         return 'bg-muted text-muted-foreground';
-     }
-   };
+    const getEmotionBadgeColor = (emotion?: string) => {
+      switch (emotion?.toLowerCase()) {
+        case 'happy':
+          return 'bg-green-500/20 text-green-400 border-green-500/50';
+        case 'confident':
+          return 'bg-blue-500/20 text-blue-400 border-blue-500/50';
+        case 'nervous':
+        case 'anxious':
+          return 'bg-yellow-500/20 text-yellow-400 border-yellow-500/50';
+        case 'stressed':
+        case 'angry':
+        case 'frustrated':
+          return 'bg-destructive/20 text-destructive border-destructive/50';
+        case 'focused':
+        case 'attentive':
+          return 'bg-purple-500/20 text-purple-400 border-purple-500/50';
+        case 'calm':
+        case 'neutral':
+        default:
+          return 'bg-muted/80 text-muted-foreground border-muted-foreground/50';
+      }
+    };
+
+    const getEmotionEmoji = (emotion?: string) => {
+      switch (emotion?.toLowerCase()) {
+        case 'happy': return '😊';
+        case 'confident': return '💪';
+        case 'nervous': return '😰';
+        case 'anxious': return '😟';
+        case 'stressed': return '😓';
+        case 'angry': return '😠';
+        case 'frustrated': return '😤';
+        case 'focused': return '🎯';
+        case 'attentive': return '👀';
+        case 'calm': return '😌';
+        case 'neutral': return '😐';
+        default: return '🤔';
+      }
+    };
+
+    const getPostureEmoji = (posture?: string) => {
+      switch (posture?.toLowerCase()) {
+        case 'upright': return '🧍';
+        case 'confident': return '💪';
+        case 'relaxed': return '😊';
+        case 'slouched': return '😔';
+        case 'leaning': return '↗️';
+        case 'tense': return '😬';
+        default: return '🧍';
+      }
+    };
+
+    const getGestureEmoji = (gesture?: string) => {
+      switch (gesture?.toLowerCase()) {
+        case 'open': return '🤲';
+        case 'expressive': return '🙌';
+        case 'minimal': return '✋';
+        case 'fidgeting': return '🤏';
+        case 'closed': return '🤐';
+        default: return '👋';
+      }
+    };
  
    if (showSummary) {
      return (
@@ -730,29 +780,56 @@
                      </div>
                    )}
  
-                   {/* AI Vision Badges */}
-                   {aiVisionMetrics && isRecording && (
-                     <div className="absolute top-4 right-4 flex flex-col gap-2">
-                       {aiVisionMetrics.detectedEmotion && (
-                         <Badge className={getEmotionBadgeColor(aiVisionMetrics.detectedEmotion)}>
-                           😊 {aiVisionMetrics.detectedEmotion}
-                         </Badge>
-                       )}
-                       {aiVisionMetrics.postureType && (
-                         <Badge variant="outline" className="bg-background/80">
-                           🧍 {aiVisionMetrics.postureType}
-                         </Badge>
-                       )}
-                       {aiVisionMetrics.gestureType && (
-                         <Badge variant="outline" className="bg-background/80">
-                           👋 {aiVisionMetrics.gestureType}
-                         </Badge>
-                       )}
-                     </div>
-                   )}
-                 </div>
- 
-                 {/* Controls */}
+                    {/* Live Emotion Indicator Badges */}
+                    {isRecording && (
+                      <div className="absolute top-4 right-4 flex flex-col gap-2 transition-all duration-300">
+                        {/* Primary Emotion Badge - Animated */}
+                        {aiVisionMetrics?.detectedEmotion && (
+                          <Badge 
+                            className={`${getEmotionBadgeColor(aiVisionMetrics.detectedEmotion)} border backdrop-blur-sm px-3 py-1.5 text-sm font-medium animate-in fade-in slide-in-from-right-2 duration-300`}
+                          >
+                            <span className="mr-1.5 text-base animate-bounce">{getEmotionEmoji(aiVisionMetrics.detectedEmotion)}</span>
+                            <span className="capitalize">{aiVisionMetrics.detectedEmotion}</span>
+                          </Badge>
+                        )}
+                        
+                        {/* Posture Badge */}
+                        {aiVisionMetrics?.postureType && (
+                          <Badge 
+                            variant="outline" 
+                            className="bg-background/80 backdrop-blur-sm border-border px-3 py-1.5 text-sm animate-in fade-in slide-in-from-right-2 duration-300 delay-75"
+                          >
+                            <span className="mr-1.5">{getPostureEmoji(aiVisionMetrics.postureType)}</span>
+                            <span className="capitalize">{aiVisionMetrics.postureType}</span>
+                          </Badge>
+                        )}
+                        
+                        {/* Gesture Badge */}
+                        {aiVisionMetrics?.gestureType && (
+                          <Badge 
+                            variant="outline" 
+                            className="bg-background/80 backdrop-blur-sm border-border px-3 py-1.5 text-sm animate-in fade-in slide-in-from-right-2 duration-300 delay-150"
+                          >
+                            <span className="mr-1.5">{getGestureEmoji(aiVisionMetrics.gestureType)}</span>
+                            <span className="capitalize">{aiVisionMetrics.gestureType}</span>
+                          </Badge>
+                        )}
+
+                        {/* Waiting for detection indicator */}
+                        {!aiVisionMetrics && (
+                          <Badge 
+                            variant="outline" 
+                            className="bg-background/80 backdrop-blur-sm border-border px-3 py-1.5 text-sm animate-pulse"
+                          >
+                            <Loader2 className="w-3 h-3 mr-1.5 animate-spin" />
+                            Analyzing...
+                          </Badge>
+                        )}
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Controls */}
                  <div className="flex items-center justify-center gap-4 mt-4">
                    <Button
                      onClick={toggleMicrophone}
