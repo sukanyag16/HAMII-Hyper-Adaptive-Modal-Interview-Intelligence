@@ -6,6 +6,49 @@ const corsHeaders = {
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 };
 
+// Extract JSON from AI response that may contain markdown code blocks
+function extractJsonFromResponse(response: string): unknown {
+  if (!response || typeof response !== 'string') {
+    throw new Error('Empty or invalid response');
+  }
+
+  // Step 1: Remove markdown code blocks
+  let cleaned = response
+    .replace(/```json\s*/gi, '')
+    .replace(/```\s*/g, '')
+    .trim();
+
+  // Step 2: Find JSON boundaries
+  const jsonStart = cleaned.indexOf('{');
+  const jsonEnd = cleaned.lastIndexOf('}');
+
+  if (jsonStart === -1 || jsonEnd === -1) {
+    throw new Error('No JSON object found in response');
+  }
+
+  cleaned = cleaned.substring(jsonStart, jsonEnd + 1);
+
+  // Step 3: Attempt parse with error handling
+  try {
+    return JSON.parse(cleaned);
+  } catch (e) {
+    // Step 4: Try to fix common issues
+    cleaned = cleaned
+      .replace(/,\s*}/g, '}') // Remove trailing commas before }
+      .replace(/,\s*]/g, ']') // Remove trailing commas before ]
+      .replace(/[\x00-\x1F\x7F]/g, '') // Remove control characters
+      .replace(/\n/g, ' ') // Replace newlines with spaces
+      .replace(/\r/g, ''); // Remove carriage returns
+
+    try {
+      return JSON.parse(cleaned);
+    } catch (e2) {
+      console.error('Failed to parse cleaned JSON:', cleaned.substring(0, 200));
+      throw new Error(`Failed to parse JSON: ${e2 instanceof Error ? e2.message : 'Unknown error'}`);
+    }
+  }
+}
+
 serve(async (req) => {
   if (req.method === 'OPTIONS') {
     return new Response(null, { headers: corsHeaders });
@@ -67,24 +110,15 @@ Assess gaze direction and quality:
 
 Provide SPECIFIC observations with exact details of what you see. Be critical and honest.
 
-Respond ONLY with valid JSON:
-{
-  "eyeContact": <number 25-100>,
-  "posture": <number 25-100>,
-  "expression": <number 25-100>,
-  "bodyLanguage": <number 25-100>,
-  "detectedEmotion": "<primary emotion detected: happy/confident/neutral/nervous/stressed>",
-  "gestureType": "<gesture observed: open/closed/fidgeting/expressive/minimal>",
-  "postureType": "<upright/slouched/leaning/tense/relaxed>",
-  "feedback": "<2-3 specific observations with actionable improvements>"
-}`
+IMPORTANT: Respond with ONLY valid JSON, no markdown, no code blocks, no extra text:
+{"eyeContact": <number 25-100>, "posture": <number 25-100>, "expression": <number 25-100>, "bodyLanguage": <number 25-100>, "detectedEmotion": "<primary emotion>", "gestureType": "<gesture type>", "postureType": "<posture type>", "feedback": "<specific observations>"}`
           },
           {
             role: 'user',
             content: [
               {
                 type: 'text',
-                text: 'Analyze this presentation frame for eye contact, posture, facial expression, and body language. Be specific about what you observe.'
+                text: 'Analyze this presentation frame for eye contact, posture, facial expression, and body language. Be specific about what you observe. Return ONLY valid JSON.'
               },
               {
                 type: 'image_url',
@@ -99,7 +133,17 @@ Respond ONLY with valid JSON:
     });
 
     const visionResult = await visionAnalysis.json();
-    const visionScores = JSON.parse(visionResult.choices[0].message.content);
+    const rawVisionContent = visionResult.choices?.[0]?.message?.content || '{}';
+    const visionScores = extractJsonFromResponse(rawVisionContent) as {
+      eyeContact: number;
+      posture: number;
+      expression: number;
+      bodyLanguage: number;
+      detectedEmotion?: string;
+      gestureType?: string;
+      postureType?: string;
+      feedback?: string;
+    };
 
     // Analyze voice quality and speech content
     let voiceScores = { clarity: 70, pace: 70, tone: 70, engagement: 70, feedback: 'Not enough speech data yet.' };
@@ -116,43 +160,28 @@ Respond ONLY with valid JSON:
           messages: [
             {
               role: 'system',
-              content: `You are an expert speech therapist and presentation coach analyzing speech content and delivery for people with speaking difficulties.
-
-IMPORTANT: Provide SPECIFIC, CONSTRUCTIVE feedback based on the actual transcript. Identify specific issues like:
-- Filler words (um, uh, like, you know)
-- Repetitions
-- Incomplete sentences
-- Pace issues (too fast/slow)
-- Clarity issues (mumbling, unclear pronunciation)
-- Confidence indicators (hesitations, qualifiers)
+              content: `You are an expert speech therapist and presentation coach analyzing speech content and delivery.
 
 Analyze the transcript and provide scores (25-100) for:
-- Clarity: Is the speech clear and articulate? Check for mumbling, slurring, unclear words. (25-100)
-- Pace: Is the speaking pace appropriate (not too fast/slow)? Count words per minute if possible. (25-100)
-- Tone: Is the tone engaging, professional, and confident? Check for monotone vs. varied. (25-100)
-- Engagement: Is the content well-structured and engaging? Check for filler words, repetitions. (25-100)
+- Clarity: Is the speech clear and articulate? (25-100)
+- Pace: Is the speaking pace appropriate? (25-100)
+- Tone: Is the tone engaging and confident? (25-100)
+- Engagement: Is the content well-structured? Check for filler words. (25-100)
 
-Be honest and specific. Mention exact problems you see in the transcript.
-
-Respond ONLY with valid JSON in this exact format:
-{
-  "clarity": <number 25-100>,
-  "pace": <number 25-100>,
-  "tone": <number 25-100>,
-  "engagement": <number 25-100>,
-  "feedback": "<specific feedback mentioning actual issues from the transcript>"
-}`
+IMPORTANT: Respond with ONLY valid JSON, no markdown, no code blocks:
+{"clarity": <number>, "pace": <number>, "tone": <number>, "engagement": <number>, "feedback": "<specific feedback>"}`
             },
             {
               role: 'user',
-              content: `Analyze this presentation transcript and provide specific, actionable feedback: "${transcript}"`
+              content: `Analyze this presentation transcript and provide specific feedback. Return ONLY valid JSON: "${transcript}"`
             }
           ]
         })
       });
 
       const voiceResult = await voiceAnalysis.json();
-      voiceScores = JSON.parse(voiceResult.choices[0].message.content);
+      const rawVoiceContent = voiceResult.choices?.[0]?.message?.content || '{}';
+      voiceScores = extractJsonFromResponse(rawVoiceContent) as typeof voiceScores;
       console.log('Voice analysis completed:', voiceScores);
     }
 
@@ -161,8 +190,8 @@ Respond ONLY with valid JSON in this exact format:
         vision: visionScores,
         voice: voiceScores,
         overall: Math.round(
-          (visionScores.eyeContact + visionScores.posture + 
-           voiceScores.clarity + voiceScores.engagement) / 4
+          ((visionScores.eyeContact || 50) + (visionScores.posture || 50) + 
+           (voiceScores.clarity || 50) + (voiceScores.engagement || 50)) / 4
         )
       }),
       {
