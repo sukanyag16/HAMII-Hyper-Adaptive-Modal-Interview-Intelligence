@@ -81,6 +81,7 @@ interface QuestionResult {
   answer: string;
   evaluation: AnswerEvaluation | null;
   metrics: FusedMetrics | null;
+  emotionHistory: string[];
 }
 
 const InterviewPractice = () => {
@@ -133,8 +134,11 @@ const InterviewPractice = () => {
   const fusionAlgorithmRef = useRef<FusionAlgorithm>(new FusionAlgorithm());
   const animationFrameRef = useRef<number | null>(null);
   const metricsHistoryRef = useRef<FusedMetrics[]>([]);
+  const emotionHistoryRef = useRef<string[]>([]);
   const aiAnalysisIntervalRef = useRef<NodeJS.Timeout | null>(null);
   const lastAiAnalysisRef = useRef<number>(0);
+  const isRecordingRef = useRef(false);
+  const timerIntervalRef = useRef<NodeJS.Timeout | null>(null);
 
   // Initialize models
   useEffect(() => {
@@ -168,6 +172,8 @@ const InterviewPractice = () => {
       if (visionAnalyzerRef.current) visionAnalyzerRef.current.cleanup();
       if (audioAnalyzerRef.current) audioAnalyzerRef.current.cleanup();
       if (speechRecognitionRef.current) speechRecognitionRef.current.stop();
+      if (timerIntervalRef.current) clearInterval(timerIntervalRef.current);
+      if (aiAnalysisIntervalRef.current) clearInterval(aiAnalysisIntervalRef.current);
     };
   }, []);
 
@@ -175,6 +181,16 @@ const InterviewPractice = () => {
   useEffect(() => {
     fusionAlgorithmRef.current.setContext('job-seekers');
   }, []);
+
+  // Re-attach stream to video element when it changes
+  useEffect(() => {
+    if (stream && videoRef.current && videoRef.current.srcObject !== stream) {
+      videoRef.current.srcObject = stream;
+      videoRef.current.play().catch(err => {
+        console.log("Video play handled:", err);
+      });
+    }
+  }, [stream, interviewStarted]);
 
   const handleResumeUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
@@ -271,16 +287,38 @@ const InterviewPractice = () => {
   const startCamera = async () => {
     try {
       const mediaStream = await navigator.mediaDevices.getUserMedia({
-        video: { width: 1280, height: 720 },
-        audio: true,
+        video: { 
+          width: { ideal: 1280 }, 
+          height: { ideal: 720 },
+          facingMode: 'user'
+        },
+        audio: {
+          echoCancellation: true,
+          noiseSuppression: true,
+          sampleRate: 44100,
+        },
       });
-      if (videoRef.current) videoRef.current.srcObject = mediaStream;
+      if (videoRef.current) {
+        videoRef.current.srcObject = mediaStream;
+        try {
+          await videoRef.current.play();
+        } catch (playError) {
+          console.log("Autoplay handled by browser:", playError);
+        }
+      }
       setStream(mediaStream);
       setIsCameraOn(true);
       setIsMicOn(true);
-    } catch (error) {
+      toast({ title: "Camera Ready", description: "Ready to start your interview" });
+    } catch (error: any) {
       console.error("Camera error:", error);
-      toast({ title: "Camera Access Denied", description: "Please allow access", variant: "destructive" });
+      if (error.name === "NotAllowedError") {
+        toast({ title: "Camera Access Denied", description: "Please allow camera and microphone access in your browser settings", variant: "destructive" });
+      } else if (error.name === "NotFoundError") {
+        toast({ title: "Camera Not Found", description: "No camera detected. Please connect a camera and try again.", variant: "destructive" });
+      } else {
+        toast({ title: "Camera Error", description: "Could not access camera. Please check permissions.", variant: "destructive" });
+      }
     }
   };
 
@@ -302,18 +340,12 @@ const InterviewPractice = () => {
 
   // AI-powered vision analysis using Gemini 2.5 Pro
   const runAiVisionAnalysis = async () => {
-    if (!videoRef.current || !isRecording) return;
+    if (!videoRef.current || !isRecordingRef.current) return;
     
     const video = videoRef.current;
     if (video.readyState !== video.HAVE_ENOUGH_DATA) return;
     
-    // Rate limit: only run every 3 seconds
-    const now = Date.now();
-    if (now - lastAiAnalysisRef.current < 3000) return;
-    lastAiAnalysisRef.current = now;
-    
     try {
-      // Capture frame as base64
       const canvas = document.createElement('canvas');
       canvas.width = video.videoWidth;
       canvas.height = video.videoHeight;
@@ -323,12 +355,8 @@ const InterviewPractice = () => {
       ctx.drawImage(video, 0, 0);
       const imageData = canvas.toDataURL('image/jpeg', 0.7);
       
-      // Call Gemini 2.5 Pro for enhanced analysis
       const { data, error } = await supabase.functions.invoke('analyze-presentation', {
-        body: { 
-          imageData, 
-          transcript: transcript + ' ' + interimTranscript
-        }
+        body: { imageData, transcript: transcript + ' ' + interimTranscript }
       });
       
       if (error) {
@@ -337,61 +365,50 @@ const InterviewPractice = () => {
       }
       
       if (data?.vision) {
-        // Update AI-specific metrics
+        const detectedEmotion = data.vision.detectedEmotion;
         setAiVisionMetrics({
-          detectedEmotion: data.vision.detectedEmotion,
+          detectedEmotion,
           gestureType: data.vision.gestureType,
           postureType: data.vision.postureType,
         });
-        
-        // Blend AI scores with local metrics for better accuracy
-        if (metricsHistoryRef.current.length > 0) {
-          const lastMetrics = metricsHistoryRef.current[metricsHistoryRef.current.length - 1];
-          const blendedMetrics: FusedMetrics = {
-            eyeContact: Math.round((lastMetrics.eyeContact * 0.3) + (data.vision.eyeContact * 0.7)),
-            posture: Math.round((lastMetrics.posture * 0.3) + (data.vision.posture * 0.7)),
-            bodyLanguage: Math.round((lastMetrics.bodyLanguage * 0.3) + (data.vision.bodyLanguage * 0.7)),
-            facialExpression: Math.round((lastMetrics.facialExpression * 0.3) + (data.vision.expression * 0.7)),
-            voiceQuality: data.voice?.tone || lastMetrics.voiceQuality,
-            speechClarity: data.voice?.clarity || lastMetrics.speechClarity,
-            contentEngagement: data.voice?.engagement || lastMetrics.contentEngagement,
-            overallScore: data.overall || lastMetrics.overallScore,
-            confidence: lastMetrics.confidence,
-          };
-          setCurrentMetrics(blendedMetrics);
-          metricsHistoryRef.current.push(blendedMetrics);
-        } else {
-          // First metrics - use AI directly
-          const aiMetrics: FusedMetrics = {
-            eyeContact: data.vision.eyeContact,
-            posture: data.vision.posture,
-            bodyLanguage: data.vision.bodyLanguage,
-            facialExpression: data.vision.expression,
-            voiceQuality: data.voice?.tone || 50,
-            speechClarity: data.voice?.clarity || 50,
-            contentEngagement: data.voice?.engagement || 50,
-            overallScore: data.overall,
-            confidence: 80,
-          };
-          setCurrentMetrics(aiMetrics);
-          metricsHistoryRef.current.push(aiMetrics);
+
+        // Track emotion history
+        if (detectedEmotion) {
+          emotionHistoryRef.current.push(detectedEmotion);
         }
         
-        console.log('AI Vision Analysis:', data.vision.detectedEmotion, data.vision.gestureType, data.vision.postureType);
+        // Blend AI scores with local metrics (70% AI / 30% local)
+        const aiMetrics: FusedMetrics = {
+          eyeContact: data.vision.eyeContact || 50,
+          posture: data.vision.posture || 50,
+          bodyLanguage: data.vision.bodyLanguage || 50,
+          facialExpression: data.vision.expression || 50,
+          voiceQuality: data.voice?.tone || 50,
+          speechClarity: data.voice?.clarity || 50,
+          contentEngagement: data.voice?.engagement || 50,
+          overallScore: data.overall || 50,
+          confidence: 0.8,
+        };
+        setCurrentMetrics(aiMetrics);
+        metricsHistoryRef.current.push(aiMetrics);
+        
+        console.log('AI Vision Analysis:', detectedEmotion, data.vision.gestureType, data.vision.postureType);
       }
     } catch (error) {
       console.error('AI vision analysis failed:', error);
     }
   };
 
-  const startRecording = () => {
+  const startRecording = useCallback(() => {
     if (!isCameraOn || !stream) return;
 
+    isRecordingRef.current = true;
     setIsRecording(true);
     setRecordingTime(0);
     setTranscript("");
     setInterimTranscript("");
     metricsHistoryRef.current = [];
+    emotionHistoryRef.current = [];
     speechAnalyzerRef.current.reset();
     fusionAlgorithmRef.current.reset();
     setAiVisionMetrics(null);
@@ -404,17 +421,18 @@ const InterviewPractice = () => {
       speechRecognitionRef.current.start();
     }
     
-    // Start AI vision analysis interval (every 3 seconds)
-    aiAnalysisIntervalRef.current = setInterval(() => {
-      runAiVisionAnalysis();
-    }, 3000);
+    // Recording timer
+    timerIntervalRef.current = setInterval(() => {
+      setRecordingTime(prev => prev + 1);
+    }, 1000);
     
-    // Run first analysis after 1 second
-    setTimeout(() => runAiVisionAnalysis(), 1000);
+    // Start AI vision analysis (every 3 seconds)
+    aiAnalysisIntervalRef.current = setInterval(runAiVisionAnalysis, 3000);
+    setTimeout(runAiVisionAnalysis, 500);
 
-    // Start analysis loop
+    // Start local analysis loop
     const analyzeFrame = async () => {
-      if (!videoRef.current || !isRecording) return;
+      if (!videoRef.current || !isRecordingRef.current) return;
       
       const video = videoRef.current;
       if (video.readyState !== video.HAVE_ENOUGH_DATA) {
@@ -431,7 +449,7 @@ const InterviewPractice = () => {
         const audioFeatures = audioAnalyzerRef.current?.getAudioFeatures() || null;
         const speechMetrics = speechAnalyzerRef.current.getMetrics();
 
-        if (visionMetrics && audioFeatures) {
+        if (visionMetrics) {
           const rawMetrics: RawMetrics = {
             eyeContact: visionMetrics.face.eyeContact,
             emotion: visionMetrics.face.emotion,
@@ -441,12 +459,12 @@ const InterviewPractice = () => {
             headPosition: visionMetrics.posture.headPosition,
             gestureVariety: visionMetrics.gestures.gestureVariety,
             handVisibility: visionMetrics.gestures.handVisibility,
-            pitch: audioFeatures.pitch,
-            pitchVariation: audioFeatures.pitchVariation,
-            volume: audioFeatures.volume,
-            volumeVariation: audioFeatures.volumeVariation,
-            clarity: audioFeatures.clarity,
-            energy: audioFeatures.energy,
+            pitch: audioFeatures?.pitch || 0,
+            pitchVariation: audioFeatures?.pitchVariation || 0,
+            volume: audioFeatures?.volume || 0,
+            volumeVariation: audioFeatures?.volumeVariation || 0,
+            clarity: audioFeatures?.clarity || 0,
+            energy: audioFeatures?.energy || 0,
             wordsPerMinute: speechMetrics.wordsPerMinute,
             fillerCount: speechMetrics.fillerCount,
             fillerPercentage: speechMetrics.fillerPercentage,
@@ -456,32 +474,45 @@ const InterviewPractice = () => {
           };
 
           const fused = fusionAlgorithmRef.current.fuse(rawMetrics);
+          
+          // Blend with AI metrics if available (70% AI / 30% local)
+          if (metricsHistoryRef.current.length > 0) {
+            const lastAiMetrics = metricsHistoryRef.current[metricsHistoryRef.current.length - 1];
+            fused.eyeContact = Math.round((fused.eyeContact * 0.3) + (lastAiMetrics.eyeContact * 0.7));
+            fused.posture = Math.round((fused.posture * 0.3) + (lastAiMetrics.posture * 0.7));
+            fused.bodyLanguage = Math.round((fused.bodyLanguage * 0.3) + (lastAiMetrics.bodyLanguage * 0.7));
+            fused.facialExpression = Math.round((fused.facialExpression * 0.3) + (lastAiMetrics.facialExpression * 0.7));
+          }
+          
           setCurrentMetrics(fused);
-          metricsHistoryRef.current.push(fused);
         }
       } catch (error) {
         console.error("Analysis error:", error);
       }
 
-      animationFrameRef.current = requestAnimationFrame(analyzeFrame);
+      if (isRecordingRef.current) {
+        animationFrameRef.current = requestAnimationFrame(analyzeFrame);
+      }
     };
 
     analyzeFrame();
-  };
+  }, [isCameraOn, stream, transcript, interimTranscript]);
 
-  const stopRecording = async () => {
+  const stopRecording = useCallback(async () => {
+    isRecordingRef.current = false;
     setIsRecording(false);
     if (speechRecognitionRef.current) speechRecognitionRef.current.stop();
     if (audioAnalyzerRef.current) audioAnalyzerRef.current.cleanup();
     if (animationFrameRef.current) cancelAnimationFrame(animationFrameRef.current);
     if (aiAnalysisIntervalRef.current) clearInterval(aiAnalysisIntervalRef.current);
+    if (timerIntervalRef.current) clearInterval(timerIntervalRef.current);
 
     // Calculate average metrics
     const avgMetrics = calculateAverageMetrics();
     
     // Evaluate answer
     await evaluateAnswer(avgMetrics);
-  };
+  }, []);
 
   const calculateAverageMetrics = (): FusedMetrics => {
     const history = metricsHistoryRef.current;
@@ -537,7 +568,8 @@ const InterviewPractice = () => {
         question: currentQuestion,
         answer,
         evaluation: data,
-        metrics: fusionMetrics
+        metrics: fusionMetrics,
+        emotionHistory: [...emotionHistoryRef.current]
       };
 
       setResults(prev => [...prev, result]);
@@ -555,7 +587,8 @@ const InterviewPractice = () => {
         question: currentQuestion,
         answer,
         evaluation: null,
-        metrics: fusionMetrics
+        metrics: fusionMetrics,
+        emotionHistory: [...emotionHistoryRef.current]
       }]);
       
       toast({ 
@@ -587,7 +620,8 @@ const InterviewPractice = () => {
       question: currentQuestion,
       answer: "(Skipped - No speech detected)",
       evaluation: null,
-      metrics: null
+      metrics: null,
+      emotionHistory: []
     }]);
     
     toast({ 
@@ -604,14 +638,7 @@ const InterviewPractice = () => {
     return `${mins}:${secs}`;
   };
 
-  // Timer
-  useEffect(() => {
-    let interval: NodeJS.Timeout;
-    if (isRecording) {
-      interval = setInterval(() => setRecordingTime(prev => prev + 1), 1000);
-    }
-    return () => clearInterval(interval);
-  }, [isRecording]);
+  // Timer is now handled by timerIntervalRef in startRecording
 
   // Results View
   if (showResults) {
