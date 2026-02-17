@@ -3,27 +3,27 @@ import { Card } from "@/components/ui/card";
 
 const technologies = [
   {
-    category: "Computer Vision",
+    category: "Frontend",
     icon: Code2,
-    items: ["MediaPipe", "OpenCV", "TensorFlow Lite"],
+    items: ["React", "TypeScript", "Vite"],
     color: "text-purple-400",
   },
   {
-    category: "AI Models",
+    category: "Computer Vision and AI Models",
     icon: Cpu,
-    items: ["Whisper ASR", "Llama 3.1", "Custom ML Pipeline"],
+    items: ["MediaPipe Face/Pose/Iris","Gemini 2.5 Pro","Gemini 3 Flash Preview", "FACS"],
     color: "text-cyan-400",
   },
   {
-    category: "Backend",
+    category: "Audio & Speech",
     icon: Database,
-    items: ["FastAPI", "WebSocket", "Microservices"],
+    items: ["Web Audio API", "Web Speech API", "YIN Pitch Detection"],
     color: "text-green-400",
   },
   {
-    category: "Security",
+    category: "NLP Models",
     icon: Shield,
-    items: ["Local Processing", "Encrypted Storage", "Self-Hosted"],
+    items: ["TF-IDF Analysis", "VADER Sentiment", "Cosine Similarity"],
     color: "text-orange-400",
   },
 ];
