@@ -29,7 +29,6 @@ serve(async (req) => {
       );
     }
 
-    // Build delivery context from fusion metrics
     const deliveryContext = fusionMetrics ? `
 Delivery Metrics Observed:
 - Eye Contact: ${fusionMetrics.eyeContact || 0}%
@@ -99,16 +98,8 @@ Provide encouraging, specific feedback.`
                   contentScore: { type: "number", description: "Content quality score (0-100)" },
                   deliveryScore: { type: "number", description: "Delivery score based on metrics (0-100)" },
                   overallScore: { type: "number", description: "Combined overall score (0-100)" },
-                  strengths: {
-                    type: "array",
-                    items: { type: "string" },
-                    description: "2-3 specific strengths"
-                  },
-                  improvements: {
-                    type: "array",
-                    items: { type: "string" },
-                    description: "1-2 specific areas for improvement"
-                  },
+                  strengths: { type: "array", items: { type: "string" }, description: "2-3 specific strengths" },
+                  improvements: { type: "array", items: { type: "string" }, description: "1-2 specific areas for improvement" },
                   sampleAnswer: { type: "string", description: "A sample better answer or key points" },
                   overallFeedback: { type: "string", description: "2-3 encouraging sentences with actionable tip" },
                   deliveryFeedback: { type: "string", description: "Specific feedback on delivery metrics" },
