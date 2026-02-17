@@ -10,10 +10,10 @@ const Footer = () => {
               <div className="w-8 h-8 rounded-lg bg-gradient-primary flex items-center justify-center">
                 <Presentation className="w-5 h-5 text-white" />
               </div>
-              <span className="font-bold text-foreground">Persona.AI</span>
+              <span className="font-bold text-foreground">HAMII</span>
             </div>
             <p className="text-sm text-muted-foreground">
-              Transform your communication skills with AI-powered coaching and real-time feedback.
+              HAMII: Enhance your communication and interview skills with hyper-adaptive, multi-model AI coaching and real-time performance feedback.
             </p>
           </div>
 
@@ -23,7 +23,7 @@ const Footer = () => {
               <li><a href="#" className="hover:text-foreground transition-colors">Features</a></li>
               <li><a href="#" className="hover:text-foreground transition-colors">How It Works</a></li>
               <li><a href="#" className="hover:text-foreground transition-colors">Technology</a></li>
-              <li><a href="#" className="hover:text-foreground transition-colors">Pricing</a></li>
+              <li><a href="#" className="hover:text-foreground transition-colors">Get Started</a></li>
             </ul>
           </div>
 
@@ -54,7 +54,7 @@ const Footer = () => {
         </div>
 
         <div className="pt-8 border-t border-border text-center text-sm text-muted-foreground">
-          <p>&copy; 2025 Persona.AI. Privacy-first, self-hosted, and open source.</p>
+          <p>&copy; @2026 HAMII — Hyper Adaptive Multi-Model Interview Intelligence.</p>
         </div>
       </div>
     </footer>
