@@ -11,10 +11,10 @@ const CTA = () => {
       <div className="container mx-auto relative z-10">
         <div className="max-w-4xl mx-auto text-center">
           <h2 className="text-4xl md:text-6xl font-bold mb-6 animate-fade-in bg-gradient-primary bg-clip-text text-transparent">
-            Ready to Transform Your Presentation Skills?
+            Ready to Ace Your Resume, HR Interviews & Presentations?
           </h2>
           <p className="text-xl text-muted-foreground mb-8 animate-fade-in" style={{ animationDelay: "0.2s" }}>
-            Join thousands of professionals mastering their public speaking with AI-powered coaching. Start practicing for free today.
+            Join thousands of aspirants enhancing their resume-based, behavioral, and presentation skills with AI-powered coaching. Start practicing for free today.
           </p>
 
           <div className="flex flex-col sm:flex-row gap-4 justify-center mb-12 animate-fade-in" style={{ animationDelay: "0.4s" }}>
@@ -31,15 +31,15 @@ const CTA = () => {
           <div className="flex flex-wrap justify-center gap-6 text-sm text-muted-foreground animate-fade-in" style={{ animationDelay: "0.6s" }}>
             <div className="flex items-center gap-2">
               <div className="w-2 h-2 rounded-full bg-accent" />
-              No credit card required
+              Real Interview Simulations
             </div>
             <div className="flex items-center gap-2">
               <div className="w-2 h-2 rounded-full bg-accent" />
-              Self-hosted & private
+              Improve with Every Attempt
             </div>
             <div className="flex items-center gap-2">
               <div className="w-2 h-2 rounded-full bg-accent" />
-              Open source technology
+              Open-Source Powered
             </div>
           </div>
         </div>
