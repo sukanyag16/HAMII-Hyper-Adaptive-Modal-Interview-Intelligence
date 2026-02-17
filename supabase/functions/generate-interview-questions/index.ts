@@ -2,11 +2,10 @@ import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
-  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
+  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version",
 };
 
 serve(async (req) => {
-  // Handle CORS preflight requests
   if (req.method === "OPTIONS") {
     return new Response(null, { headers: corsHeaders });
   }
@@ -33,7 +32,6 @@ serve(async (req) => {
       );
     }
 
-    // Enhanced NER-KE Algorithm System Prompt
     const systemPrompt = `You are an expert resume parser implementing the NER-KE (Named Entity Recognition & Keyword Extraction) Algorithm.
 
 ## ALGORITHM SPECIFICATION: NER-KE v2.0
@@ -87,7 +85,7 @@ Extract using pattern matching and keyword recognition:
 ### PHASE 3: TEMPLATE-BASED SUMMARY GENERATION
 Generate candidateSummary using ONLY this template:
 
-"[NAME or 'Candidate'] [has/with] [SKILLS count] technical skills including [TOP 3-5 SKILLS from SKILLS_LIST]. [IF EXPERIENCE: 'Experience at [ORGANIZATION names].''] [IF PROJECTS: 'Worked on [PROJECT count] projects including [PROJECT names].'] [IF EDUCATION: 'Education: [DEGREE] from [INSTITUTION].']"
+"[NAME or 'Candidate'] [has/with] [SKILLS count] technical skills including [TOP 3-5 SKILLS from SKILLS_LIST]. [IF EXPERIENCE: 'Experience at [ORGANIZATION names].'] [IF PROJECTS: 'Worked on [PROJECT count] projects including [PROJECT names].'] [IF EDUCATION: 'Education: [DEGREE] from [INSTITUTION].']"
 
 STRICT RULES:
 - Use ONLY words appearing in the resume
@@ -182,30 +180,16 @@ OUTPUT the structured extraction result.`;
                     type: "object",
                     description: "Entities extracted using NER-KE algorithm - ONLY include what is explicitly in resume",
                     properties: {
-                      name: { 
-                        type: "string", 
-                        description: "Candidate name if found, otherwise 'Candidate'" 
-                      },
-                      email: { 
-                        type: "string", 
-                        description: "Email if found, otherwise empty string" 
-                      },
-                      skills: { 
-                        type: "array", 
-                        items: { type: "string" }, 
-                        description: "EXACT skill names from resume - no inference" 
-                      },
+                      name: { type: "string", description: "Candidate name if found, otherwise 'Candidate'" },
+                      email: { type: "string", description: "Email if found, otherwise empty string" },
+                      skills: { type: "array", items: { type: "string" }, description: "EXACT skill names from resume - no inference" },
                       projects: { 
                         type: "array", 
                         items: { 
                           type: "object",
                           properties: {
                             name: { type: "string", description: "EXACT project name as written" },
-                            technologies: { 
-                              type: "array", 
-                              items: { type: "string" },
-                              description: "Technologies explicitly mentioned for this project"
-                            },
+                            technologies: { type: "array", items: { type: "string" }, description: "Technologies explicitly mentioned for this project" },
                             description: { type: "string", description: "Brief description using original text" },
                             metrics: { type: "string", description: "Quantifiable outcomes if mentioned" }
                           },
@@ -221,11 +205,7 @@ OUTPUT the structured extraction result.`;
                             company: { type: "string", description: "EXACT company name" },
                             role: { type: "string", description: "EXACT job title" },
                             duration: { type: "string", description: "Duration if mentioned" },
-                            responsibilities: { 
-                              type: "array", 
-                              items: { type: "string" },
-                              description: "Key responsibilities using original phrasing"
-                            }
+                            responsibilities: { type: "array", items: { type: "string" }, description: "Key responsibilities using original phrasing" }
                           },
                           required: ["company", "role"]
                         },
@@ -245,43 +225,21 @@ OUTPUT the structured extraction result.`;
                         },
                         description: "Education with EXACT degree and institution names" 
                       },
-                      achievements: { 
-                        type: "array", 
-                        items: { type: "string" }, 
-                        description: "Certifications, awards, metrics - EXACT as written" 
-                      }
+                      achievements: { type: "array", items: { type: "string" }, description: "Certifications, awards, metrics - EXACT as written" }
                     },
                     required: ["name", "skills"]
                   },
-                  candidateSummary: {
-                    type: "string",
-                    description: "Factual summary using ONLY extracted entities. Template-based, no assumptions. Omit sections with no data."
-                  },
+                  candidateSummary: { type: "string", description: "Factual summary using ONLY extracted entities. Template-based, no assumptions." },
                   questions: {
                     type: "array",
                     items: {
                       type: "object",
                       properties: {
-                        question: { 
-                          type: "string", 
-                          description: "Interview question - MUST contain EXACT terms from resume" 
-                        },
-                        category: { 
-                          type: "string", 
-                          enum: ["Introduction", "Project-Based", "Experience-Based", "Technical", "Behavioral", "Achievement-Based"]
-                        },
-                        skillAssessed: { 
-                          type: "string", 
-                          description: "Skill being assessed - use EXACT skill name from resume" 
-                        },
-                        resumeReference: {
-                          type: "string",
-                          description: "The EXACT term/phrase from resume this question references"
-                        },
-                        answerTip: { 
-                          type: "string", 
-                          description: "Tip for answering. Use STAR method for behavioral questions." 
-                        }
+                        question: { type: "string", description: "Interview question - MUST contain EXACT terms from resume" },
+                        category: { type: "string", enum: ["Introduction", "Project-Based", "Experience-Based", "Technical", "Behavioral", "Achievement-Based"] },
+                        skillAssessed: { type: "string", description: "Skill being assessed - use EXACT skill name from resume" },
+                        resumeReference: { type: "string", description: "The EXACT term/phrase from resume this question references" },
+                        answerTip: { type: "string", description: "Tip for answering. Use STAR method for behavioral questions." }
                       },
                       required: ["question", "category", "skillAssessed", "resumeReference", "answerTip"]
                     }
@@ -293,11 +251,7 @@ OUTPUT the structured extraction result.`;
                       projectsFound: { type: "number", description: "Number of projects extracted" },
                       experienceFound: { type: "number", description: "Number of work experiences extracted" },
                       educationFound: { type: "number", description: "Number of education entries extracted" },
-                      overallQuality: { 
-                        type: "string", 
-                        enum: ["high", "medium", "low"],
-                        description: "Overall extraction quality based on resume detail"
-                      }
+                      overallQuality: { type: "string", enum: ["high", "medium", "low"], description: "Overall extraction quality" }
                     },
                     required: ["skillsFound", "overallQuality"]
                   }
@@ -337,14 +291,11 @@ OUTPUT the structured extraction result.`;
     const data = await response.json();
     console.log("AI response received");
     
-    // Extract tool call result
     const toolCall = data.choices?.[0]?.message?.tool_calls?.[0];
     if (toolCall?.function?.arguments) {
       const result = JSON.parse(toolCall.function.arguments);
       console.log("NER-KE Extraction complete:");
       console.log("- Skills found:", result.extractionConfidence?.skillsFound || 0);
-      console.log("- Projects found:", result.extractionConfidence?.projectsFound || 0);
-      console.log("- Experience found:", result.extractionConfidence?.experienceFound || 0);
       console.log("- Questions generated:", result.questions?.length || 0);
       
       return new Response(
@@ -353,7 +304,6 @@ OUTPUT the structured extraction result.`;
       );
     }
 
-    // Fallback if no tool call
     return new Response(
       JSON.stringify({ error: "Failed to parse AI response" }),
       { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
