@@ -53,15 +53,19 @@ const HRInterviewSummary = ({ results, totalDuration, onRestart, onGoHome }: HRI
   const [activeTab, setActiveTab] = useState<'overview' | 'questions' | 'delivery'>('overview');
   const { toast } = useToast();
 
+  // Filter out results with null evaluation for score calculations
+  const evaluatedResults = results.filter(r => r.evaluation !== null);
+  const evalCount = evaluatedResults.length || 1; // prevent division by zero
+
   // Calculate overall metrics
   const avgOverallScore = Math.round(
-    results.reduce((sum, r) => sum + (r.evaluation?.overallScore || 0), 0) / results.length
+    evaluatedResults.reduce((sum, r) => sum + (r.evaluation?.overallScore || 0), 0) / evalCount
   );
   const avgContentScore = Math.round(
-    results.reduce((sum, r) => sum + (r.evaluation?.contentScore || 0), 0) / results.length
+    evaluatedResults.reduce((sum, r) => sum + (r.evaluation?.contentScore || 0), 0) / evalCount
   );
   const avgDeliveryScore = Math.round(
-    results.reduce((sum, r) => sum + (r.evaluation?.deliveryScore || 0), 0) / results.length
+    evaluatedResults.reduce((sum, r) => sum + (r.evaluation?.deliveryScore || 0), 0) / evalCount
   );
 
   // Delivery metrics averages
@@ -72,10 +76,10 @@ const HRInterviewSummary = ({ results, totalDuration, onRestart, onGoHome }: HRI
 
   // STAR average
   const avgStar = {
-    situation: Math.round(results.reduce((sum, r) => sum + (r.evaluation?.starBreakdown?.situation || 0), 0) / results.length),
-    task: Math.round(results.reduce((sum, r) => sum + (r.evaluation?.starBreakdown?.task || 0), 0) / results.length),
-    action: Math.round(results.reduce((sum, r) => sum + (r.evaluation?.starBreakdown?.action || 0), 0) / results.length),
-    result: Math.round(results.reduce((sum, r) => sum + (r.evaluation?.starBreakdown?.result || 0), 0) / results.length),
+    situation: Math.round(evaluatedResults.reduce((sum, r) => sum + (r.evaluation?.starBreakdown?.situation || 0), 0) / evalCount),
+    task: Math.round(evaluatedResults.reduce((sum, r) => sum + (r.evaluation?.starBreakdown?.task || 0), 0) / evalCount),
+    action: Math.round(evaluatedResults.reduce((sum, r) => sum + (r.evaluation?.starBreakdown?.action || 0), 0) / evalCount),
+    result: Math.round(evaluatedResults.reduce((sum, r) => sum + (r.evaluation?.starBreakdown?.result || 0), 0) / evalCount),
   };
 
   // Emotion distribution
