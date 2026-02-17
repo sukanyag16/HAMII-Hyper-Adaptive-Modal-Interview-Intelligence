@@ -54,7 +54,7 @@ const Footer = () => {
         </div>
 
         <div className="pt-8 border-t border-border text-center text-sm text-muted-foreground">
-          <p>&copy; @2026 HAMII — Hyper Adaptive Multi-Model Interview Intelligence.</p>
+          <p>&copy; 2026 HAMII — Hyper Adaptive Multi-Model Interview Intelligence.</p>
         </div>
       </div>
     </footer>
