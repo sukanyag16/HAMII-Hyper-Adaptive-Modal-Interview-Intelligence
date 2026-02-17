@@ -3,23 +3,23 @@ import { Video, BarChart3, TrendingUp, Award } from "lucide-react";
 const steps = [
   {
     icon: Video,
-    title: "Record Your Practice",
-    description: "Choose your presentation topic and record yourself using our mobile app or web interface. Sessions from 30 seconds to 30 minutes.",
+    title: "Select Practice Category",
+    description: "Choose from different categories such as Resume-Based Interviews, HR/Behavioral Interviews or presentation formats like job interviews, sales pitches, or academic presentations to focus your practice effectively..",
   },
   {
     icon: BarChart3,
-    title: "AI Analysis",
-    description: "Our multi-modal AI analyzes facial expressions, voice quality, content, and body language in real-time with 95%+ accuracy.",
+    title: "Grant Camera & Microphone Access",
+    description: "Allow browser access to your camera and microphone for real-time video and audio analysis using WebRTC and Web Audio APIs.",
   },
   {
     icon: TrendingUp,
-    title: "Get Detailed Feedback",
-    description: "Receive comprehensive scoring and personalized recommendations. All scores start at 25% to maintain motivation.",
+    title: "Start Real-Time Analysis",
+    description: "Begin speaking while MediaPipe analyzes your facial expressions, posture, and gestures, alongside speech recognition and audio processing.",
   },
   {
     icon: Award,
-    title: "Track Progress",
-    description: "Monitor your improvement over time with historical analytics, achievement badges, and exportable progress reports.",
+    title: "View Detailed Results",
+    description: "Receive comprehensive feedback on eye contact, posture, speech clarity, and content quality, along with a detailed report on your Resume-Based and HR/Behavioral interview performance, including personalized suggestions for improvement.",
   },
 ];
 
