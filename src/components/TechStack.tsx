@@ -3,9 +3,9 @@ import { Card } from "@/components/ui/card";
 
 const technologies = [
   {
-    category: "Frontend",
+    category: "Frontend and Backend",
     icon: Code2,
-    items: ["React", "TypeScript", "Vite"],
+    items: ["React", "Vite", "TypeScript","Deno","Serverless Edge REST APIs","Google Gemini"],
     color: "text-purple-400",
   },
   {
