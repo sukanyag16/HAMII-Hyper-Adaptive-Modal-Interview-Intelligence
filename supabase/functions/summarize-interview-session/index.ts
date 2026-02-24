@@ -11,113 +11,132 @@ serve(async (req) => {
   }
 
   try {
-    const { results, metrics, candidateName = "the candidate" } = await req.json();
+    const body = await req.json();
+    const { resumeText, numberOfQuestions = 5 } = body;
 
-    const GEMINI_API_KEY = Deno.env.get("GEMINI_API_KEY");
+    if (!resumeText || typeof resumeText !== "string" || resumeText.trim().length < 40) {
+      return new Response(
+        JSON.stringify({ error: "resumeText is missing or too short" }),
+        { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
+
+    const GEMINI_API_KEY = Deno.env.get("ABARA");
     if (!GEMINI_API_KEY) {
       return new Response(
-        JSON.stringify({ error: "GEMINI_API_KEY not configured" }),
+        JSON.stringify({ error: "ABARA environment variable is not set" }),
         { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
 
-    // Build context (you can adjust truncation if needed)
-    const questionsContext = results
-      .map((r, i) => `Q${i+1} (${r.category || "?"})  
-Question: ${r.question}
-Answer: ${r.answer?.substring(0, 380) || ""}${r.answer?.length > 380 ? "..." : ""}
-Scores: Content ${r.contentScore ?? "?"}% | Delivery ${r.deliveryScore ?? "?"}% | Overall ${r.overallScore ?? "?"}%
-Strengths: ${r.strengths?.join(", ") || "—"}
-Improvements: ${r.improvements?.join(", ") || "—"}`)
-      .join("\n\n");
+    const systemPrompt = `You are an expert technical interviewer and resume analyst implementing the NER-KE (Named Entity Recognition & Keyword Extraction) Algorithm v2.0.
 
-    const metricsStr = `
-Average delivery metrics:
-• Eye contact: ${metrics?.avgEyeContact ?? "?"}%
-• Posture: ${metrics?.avgPosture ?? "?"}%
-• Speech clarity: ${metrics?.avgSpeechClarity ?? "?"}%
-• Body language: ${metrics?.avgBodyLanguage ?? "?"}%
-• Overall score: ${metrics?.avgOverallScore ?? "?"}%`;
+## CORE PRINCIPLE: ZERO HALLUCINATION
+You must ONLY extract and reference information that is EXPLICITLY written in the resume text.
+- If information is not present, mark it as "NOT_FOUND" or empty array
+- NEVER infer, assume, or generate any data not in the source text
+- Every question MUST be directly tied to something mentioned in the resume
 
-    const system = `You are a professional interview coach. Create a concise, encouraging yet honest session recap.
+## YOUR TASK
+1. Parse the resume to extract: skills, technologies, job titles, companies, projects, education, certifications, achievements
+2. Generate insightful interview questions based ONLY on what is found
+3. Cover a mix of categories: Technical, Behavioral, Situational, Experience-based
+4. Return a valid JSON array of question objects
 
-Required JSON structure (exact keys):
+## OUTPUT FORMAT
+Return ONLY a JSON array like this (no markdown, no extra text):
+[
+  {
+    "id": 1,
+    "question": "Can you walk me through your experience with [specific technology from resume]?",
+    "category": "Technical",
+    "difficulty": "Medium",
+    "relatedSkill": "[exact skill/tech from resume]",
+    "expectedKeyPoints": ["point 1", "point 2", "point 3"]
+  }
+]
 
-{
-  "executiveSummary": "2–4 sentence overview",
-  "performanceRating": "one of: Excellent | Strong | Good | Fair | Needs Improvement",
-  "topStrengths": ["point 1", "point 2", "point 3"],
-  "priorityImprovements": ["point 1", "point 2", "point 3"],
-  "deliveryAnalysis": "short paragraph about non-verbal communication",
-  "contentQuality": "short paragraph about answer structure & relevance",
-  "actionPlan": ["action 1", "action 2", "action 3"],
-  "motivationalNote": "short encouraging closing"
-}
+Categories must be one of: Technical | Behavioral | Situational | Experience | Leadership | Problem-Solving
+Difficulty must be one of: Easy | Medium | Hard`;
 
-Be specific, reference concrete examples from answers when possible.`;
+    const userPrompt = `EXECUTE NER-KE ALGORITHM v2.0 ON THIS RESUME:
 
-    const user = `Session recap for ${candidateName}:
+===== RESUME TEXT START =====
+${resumeText}
+===== RESUME TEXT END =====
 
-${metricsStr}
+STEP-BY-STEP EXECUTION:
+1. Extract all skills, technologies, tools mentioned
+2. Extract all job roles, companies, durations
+3. Extract all projects and achievements
+4. Extract education and certifications
+5. Based on extracted data ONLY, generate exactly ${numberOfQuestions} interview questions
+6. Ensure variety across categories and difficulty levels
+7. Return ONLY the JSON array, no extra text
 
-${questionsContext || "(no detailed answers provided — give general feedback)"}
+Generate exactly ${numberOfQuestions} questions now.`;
 
-Generate the recap now.`;
+    const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${GEMINI_API_KEY}`;
 
-    const res = await fetch(
-      `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${GEMINI_API_KEY}`,
-      {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          contents: [{ parts: [{ text: user }] }],
-          systemInstruction: { parts: [{ text: system }] },
-          generationConfig: {
-            temperature: 0.35,
-            topP: 0.92,
-            maxOutputTokens: 1200,
-            responseMimeType: "application/json"
+    const res = await fetch(url, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        contents: [
+          {
+            parts: [
+              { text: systemPrompt + "\n\n" + userPrompt }
+            ]
           }
-        })
-      }
-    );
+        ],
+        generationConfig: {
+          temperature: 0.2,
+          topP: 0.95,
+          maxOutputTokens: 4096,
+          responseMimeType: "application/json"
+        }
+      })
+    });
 
     if (!res.ok) {
-      const txt = await res.text();
-      console.error("Gemini summary failed:", res.status, txt);
-      return new Response(JSON.stringify({ error: "AI summary request failed" }), {
-        status: 502,
-        headers: { ...corsHeaders, "Content-Type": "application/json" }
-      });
+      const errText = await res.text();
+      console.error("Gemini API failed:", res.status, errText);
+      return new Response(
+        JSON.stringify({ error: "Gemini API request failed", status: res.status }),
+        { status: 502, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
     }
 
     const data = await res.json();
-    const text = data.candidates?.[0]?.content?.parts?.[0]?.text?.trim();
+    const text = data.candidates?.[0]?.content?.parts?.[0]?.text;
 
-    let json;
-    try {
-      json = JSON.parse(text);
-    } catch {
-      json = {
-        executiveSummary: "Session completed. Review individual question feedback.",
-        performanceRating: "Good",
-        topStrengths: ["Clear speaking", "Relevant examples", "Professional tone"],
-        priorityImprovements: ["Use STAR structure more consistently", "Add more quantifiable results", "Maintain better eye contact"],
-        deliveryAnalysis: "Delivery was generally solid with room for improvement in eye contact and posture.",
-        contentQuality: "Answers showed good understanding but could benefit from more structure.",
-        actionPlan: ["Practice STAR method daily", "Record mock interviews", "Review feedback after each session"],
-        motivationalNote: "Solid foundation — keep practicing!"
-      };
+    if (!text) {
+      return new Response(
+        JSON.stringify({ error: "Empty response from Gemini" }),
+        { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
     }
 
-    return new Response(JSON.stringify(json), {
-      headers: { ...corsHeaders, "Content-Type": "application/json" }
-    });
+    let parsed;
+    try {
+      parsed = JSON.parse(text);
+    } catch (e) {
+      console.error("Could not parse JSON from Gemini:", text.substring(0, 300));
+      return new Response(
+        JSON.stringify({ error: "Invalid JSON response from AI" }),
+        { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
+
+    return new Response(
+      JSON.stringify(parsed),
+      { headers: { ...corsHeaders, "Content-Type": "application/json" } }
+    );
 
   } catch (err) {
     console.error(err);
     return new Response(
-      JSON.stringify({ error: "Internal error" }),
+      JSON.stringify({ error: err.message || "Internal server error" }),
       { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
     );
   }
