@@ -16,27 +16,42 @@ const Footer = () => {
               HAMII: Enhance your communication and interview skills with hyper-adaptive, multi-model AI coaching and real-time performance feedback.
             </p>
           </div>
-
           <div>
             <h4 className="font-semibold mb-4 text-foreground">Product</h4>
             <ul className="space-y-2 text-sm text-muted-foreground">
-              <li><a href="#" className="hover:text-foreground transition-colors">Features</a></li>
-              <li><a href="#" className="hover:text-foreground transition-colors">How It Works</a></li>
-              <li><a href="#" className="hover:text-foreground transition-colors">Technology</a></li>
-              <li><a href="#" className="hover:text-foreground transition-colors">Get Started</a></li>
+              <li><a href="#features" className="hover:text-foreground transition-colors">Features</a></li>
+              <li><a href="#how-it-works" className="hover:text-foreground transition-colors">How It Works</a></li>
+              <li><a href="#technology" className="hover:text-foreground transition-colors">Technology</a></li>
+              <li><a href="/practice" className="hover:text-foreground transition-colors">Get Started</a></li> {/* updated example if needed */}
             </ul>
           </div>
-
           <div>
             <h4 className="font-semibold mb-4 text-foreground">Interviews</h4>
             <ul className="space-y-2 text-sm text-muted-foreground">
-              <li><a href="#" className="hover:text-foreground transition-colors">Resume-Based Interviews</a></li>
-              <li><a href="#" className="hover:text-foreground transition-colors">AI-Powered HR Round</a></li>
-              <li><a href="#" className="hover:text-foreground transition-colors">Technical MCQs</a></li>
-              <li><a href="#" className="hover:text-foreground transition-colors"></a></li>
+              <li>
+                <a 
+                  href="/interview" 
+                  className="hover:text-foreground transition-colors"
+                >
+                  Resume-Based Interviews
+                </a>
+              </li>
+              <li>
+                <a 
+                  href="https://hrinterview-psi.vercel.app/" 
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="hover:text-foreground transition-colors"
+                >
+                  AI-Powered HR Round
+                </a>
+              </li>
+              <li>
+                <a href="#" className="hover:text-foreground transition-colors">Technical MCQs</a>
+              </li>
+              {/* Removed empty <li> */}
             </ul>
           </div>
-
           <div>
             <h4 className="font-semibold mb-4 text-foreground">Connect</h4>
             <div className="flex gap-3">
@@ -52,7 +67,6 @@ const Footer = () => {
             </div>
           </div>
         </div>
-
         <div className="pt-8 border-t border-border text-center text-sm text-muted-foreground">
           <p>&copy; 2026 HAMII — Hyper Adaptive Multi-Model Interview Intelligence.</p>
         </div>
