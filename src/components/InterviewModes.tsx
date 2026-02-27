@@ -18,7 +18,6 @@ const InterviewModes = () => {
             Two powerful ways to practice and master your interview skills with AI-powered feedback
           </p>
         </div>
-
         <div className="grid md:grid-cols-2 gap-8 max-w-5xl mx-auto">
           {/* Resume-Based Interview */}
           <Card className="group relative overflow-hidden border-border bg-gradient-card hover:border-primary/50 transition-all duration-300">
@@ -47,7 +46,7 @@ const InterviewModes = () => {
                   <span className="text-muted-foreground">Technical depth evaluation and feedback</span>
                 </li>
               </ul>
-              <Button 
+              <Button
                 className="w-full mt-4 bg-primary hover:bg-primary/90 text-primary-foreground"
                 onClick={() => window.location.href = '/interview'}
               >
@@ -57,7 +56,7 @@ const InterviewModes = () => {
             </CardContent>
           </Card>
 
-          {/* HR/Behavioral Interview */}
+          {/* HR/Behavioral Interview - UPDATED BUTTON */}
           <Card className="group relative overflow-hidden border-border bg-gradient-card hover:border-accent/50 transition-all duration-300">
             <div className="absolute inset-0 bg-gradient-to-br from-accent/5 to-transparent opacity-0 group-hover:opacity-100 transition-opacity" />
             <CardHeader className="relative">
@@ -84,9 +83,9 @@ const InterviewModes = () => {
                   <span className="text-muted-foreground">Emotion tracking and delivery feedback</span>
                 </li>
               </ul>
-              <Button 
+              <Button
                 className="w-full mt-4 bg-accent hover:bg-accent/90 text-accent-foreground"
-                onClick={() => window.location.href = '/hr-interview'}
+                onClick={() => window.open("https://hrinterview-psi.vercel.app/", "_blank")}
               >
                 Start HR Interview
                 <ArrowRight className="w-4 h-4 ml-2" />
