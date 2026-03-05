@@ -1,73 +1,76 @@
-# Welcome to your Lovable project
+# HAMII - Hyper-Adaptive Multi-Modal Interview Intelligence
 
-## Project info
+HAMII is an advanced, AI-powered communication coaching platform designed to help job seekers, professionals, and students master their interview and presentation skills. It uses state-of-the-art computer vision, audio processing, and NLP to provide real-time, multi-modal feedback.
 
-**URL**: https://lovable.dev/projects/ecb251a0-cf70-4207-8c60-b968261a64fe
+## 🚀 Key Features
 
-## How can I edit this code?
+- **Real-Time AI Analysis**: Simultaneous tracking of facial expressions, body language, and vocal metrics.
+- **Multi-Modal Fusion**: Intelligent aggregation of vision, audio, and speech data for holistic scoring.
+- **Context-Aware Coaching**: Tailored feedback based on user category (e.g., Job Seeker, Sales, Public Speaker).
+- **Proctored Exam Simulation**: Technical exam environment with AI monitoring.
+- **Privacy First**: All analysis is performed locally in the browser or via secure, isolated functions.
+- **Multi-Language Support**: Speech recognition and analysis for English, Hindi, and Telugu.
 
-There are several ways of editing your application.
+## 🛠️ Technology Stack
 
-**Use Lovable**
+- **Frontend**: React, TypeScript, Vite, Tailwind CSS, shadcn/ui
+- **AI/ML**: 
+  - **Vision**: MediaPipe (Face Mesh, Pose, Gesture)
+  - **Audio**: Web Audio API (YIN Pitch Detection, RMS Energy)
+  - **NLP**: Custom algorithms for TF-IDF, Sentiment Analysis, and Fluecy Scoring.
+- **Backend/Integrations**: Supabase (Edge Functions for deep analysis), Firebase (Planned for Auth).
 
-Simply visit the [Lovable Project](https://lovable.dev/projects/ecb251a0-cf70-4207-8c60-b968261a64fe) and start prompting.
+## 🧠 How the Algorithm Works
 
-Changes made via Lovable will be committed automatically to this repo.
+HAMII employs a **Multi-Modal Fusion Engine** that processes three primary data streams:
 
-**Use your preferred IDE**
+1.  **Vision Analyzer**:
+    - **Face Mesh**: Tracks 468 landmarks to detect eye contact, blinks, and FACS-based micro-expressions.
+    - **Pose Detection**: Analyzes 33 keypoints to monitor posture, stability, and shoulder alignment.
+    - **Gesture Recognition**: Tracks hand visibility and movement variety.
 
-If you want to work locally using your own IDE, you can clone this repo and push changes. Pushed changes will also be reflected in Lovable.
+2.  **Audio Analyzer**:
+    - **Pitch Tracking**: Uses the **YIN algorithm** for high-precision fundamental frequency detection.
+    - **Dynamic Range**: Monitors volume (RMS) and signal-to-noise ratio (SNR) for speech clarity.
+    - **Voice Stability**: Measures pitch variation to infer confidence levels.
 
-The only requirement is having Node.js & npm installed - [install with nvm](https://github.com/nvm-sh/nvm#installing-and-updating)
+3.  **Speech & NLP Engine**:
+    - **Lexical Analysis**: Calculates WPM (Words Per Minute) and filler word percentage.
+    - **Sentiment Analysis**: Uses VADER-inspired logic to determine the emotional tone of responses.
+    - **Topic Modeling**: TF-IDF and Cosine Similarity to verify content relevance.
 
-Follow these steps:
+4.  **Weighted Fusion**:
+    - Metrics are aggregated using a context-dependent weighting matrix (e.g., job seekers are scored higher on eye contact and posture).
+    - **Temporal Smoothing**: Uses Exponential Moving Average (EMA) and Bayesian-style confidence scoring to provide stable, reliable feedback.
 
-```sh
-# Step 1: Clone the repository using the project's Git URL.
-git clone <YOUR_GIT_URL>
+## 📂 Project Structure
 
-# Step 2: Navigate to the project directory.
-cd <YOUR_PROJECT_NAME>
+- `src/components`: UI components and page sections.
+- `src/lib`: Core AI/ML logic and analyzers.
+- `src/pages`: Application routes and main views.
+- `src/hooks`: Custom React hooks for state management.
+- `src/integrations`: Connection logic for external services.
 
-# Step 3: Install the necessary dependencies.
-npm i
+## 🚦 Getting Started
 
-# Step 4: Start the development server with auto-reloading and an instant preview.
+### Prerequisites
+- Node.js (v18+)
+- npm or bun
+
+### Installation
+```bash
+# Clone the repository
+git clone https://github.com/priyankadaspoddar/HAMII-Hyper-Adaptive-Modal-Interview-Intelligence.git
+
+# Navigate to the project directory
+cd HAMII-Hyper-Adaptive-Modal-Interview-Intelligence-main
+
+# Install dependencies
+npm install
+
+# Start the dev server
 npm run dev
 ```
 
-**Edit a file directly in GitHub**
-
-- Navigate to the desired file(s).
-- Click the "Edit" button (pencil icon) at the top right of the file view.
-- Make your changes and commit the changes.
-
-**Use GitHub Codespaces**
-
-- Navigate to the main page of your repository.
-- Click on the "Code" button (green button) near the top right.
-- Select the "Codespaces" tab.
-- Click on "New codespace" to launch a new Codespace environment.
-- Edit files directly within the Codespace and commit and push your changes once you're done.
-
-## What technologies are used for this project?
-
-This project is built with:
-
-- Vite
-- TypeScript
-- React
-- shadcn-ui
-- Tailwind CSS
-
-## How can I deploy this project?
-
-Simply open [Lovable](https://lovable.dev/projects/ecb251a0-cf70-4207-8c60-b968261a64fe) and click on Share -> Publish.
-
-## Can I connect a custom domain to my Lovable project?
-
-Yes, you can!
-
-To connect a domain, navigate to Project > Settings > Domains and click Connect Domain.
-
-Read more here: [Setting up a custom domain](https://docs.lovable.dev/features/custom-domain#custom-domain)
+## 📄 License
+This project is licensed under the MIT License.

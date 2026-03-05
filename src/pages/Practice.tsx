@@ -12,6 +12,7 @@ import { ContentAnalyzer } from "@/lib/contentAnalysis";
 import { FusionAlgorithm } from "@/lib/fusionAlgorithm";
 import type { RawMetrics } from "@/lib/fusionAlgorithm";
 import CategorySelection, { type UserCategory } from "@/components/CategorySelection";
+import { Zap, Brain, Cpu, BarChart3, ArrowDown, Activity } from "lucide-react";
 
 const Practice = () => {
   const navigate = useNavigate();
@@ -434,7 +435,7 @@ const Practice = () => {
           </Button>
         </div>
 
-        <div className="grid lg:grid-cols-3 gap-6">
+        <div className="grid lg:grid-cols-3 gap-6 mb-12">
           {/* Video Area */}
           <div className="lg:col-span-2">
             <Card className="p-6 bg-gradient-card border-border">
@@ -481,7 +482,7 @@ const Practice = () => {
                 )}
               </div>
 
-              {/* CONTROLS WITH LANGUAGE SELECTOR */}
+              {/* CONTROLS */}
               <div className="flex flex-wrap justify-center gap-4 items-center">
                 {!isCameraOn ? (
                   <Button size="lg" onClick={startCamera} className="bg-primary hover:bg-primary/90">
@@ -501,7 +502,6 @@ const Practice = () => {
                       )}
                     </Button>
 
-                    {/* LANGUAGE SELECTOR */}
                     <select
                       className="px-4 py-2 text-sm rounded border border-border bg-background focus:outline-none focus:ring-2 focus:ring-primary"
                       onChange={(e) => speechRecognitionRef.current?.setLanguage(e.target.value as "en" | "hi" | "te")}
@@ -644,6 +644,122 @@ const Practice = () => {
             </Card>
           </div>
         </div>
+
+        {/* ALGORITHM & FLOWCHART SECTION */}
+        <section className="mt-12 space-y-8 animate-fade-in" style={{ animationDelay: "0.2s" }}>
+          <div className="text-center mb-12">
+            <h2 className="text-3xl font-bold bg-gradient-primary bg-clip-text text-transparent mb-4">
+              How HAMII Intelligence Works
+            </h2>
+            <p className="text-muted-foreground max-w-2xl mx-auto">
+              Our advanced multi-modal fusion algorithm analyzes your performance across multiple dimensions in real-time.
+            </p>
+          </div>
+
+          {/* Visual Flowchart */}
+          <div className="relative max-w-5xl mx-auto bg-gradient-card p-8 rounded-2xl border border-border overflow-x-auto">
+            <div className="flex flex-col md:flex-row items-center justify-between gap-8 min-w-[800px]">
+              {/* Input Node */}
+              <div className="flex flex-col items-center text-center group">
+                <div className="w-20 h-20 rounded-2xl bg-primary/20 flex items-center justify-center border border-primary/30 group-hover:scale-110 transition-transform">
+                  <Activity className="w-10 h-10 text-primary" />
+                </div>
+                <h4 className="font-bold mt-4">Multi-Modal Input</h4>
+                <p className="text-xs text-muted-foreground">Video • Audio • Speech</p>
+              </div>
+
+              <div className="hidden md:block">
+                <ArrowDown className="w-8 h-8 text-primary/40 -rotate-90" />
+              </div>
+
+              {/* Analyzer Nodes */}
+              <div className="flex flex-col gap-4">
+                <div className="p-4 bg-background/50 rounded-xl border border-border flex items-center gap-4 hover:border-primary/50 transition-colors">
+                  <Camera className="w-6 h-6 text-primary" />
+                  <div className="text-left">
+                    <p className="text-sm font-bold">Vision Analyzer</p>
+                    <p className="text-[10px] text-muted-foreground">MediaPipe Landmarkers (FACS)</p>
+                  </div>
+                </div>
+                <div className="p-4 bg-background/50 rounded-xl border border-border flex items-center gap-4 hover:border-primary/50 transition-colors">
+                  <Mic className="w-6 h-6 text-accent" />
+                  <div className="text-left">
+                    <p className="text-sm font-bold">Audio Analyzer</p>
+                    <p className="text-[10px] text-muted-foreground">YIN Algorithm • RMS Energy</p>
+                  </div>
+                </div>
+                <div className="p-4 bg-background/50 rounded-xl border border-border flex items-center gap-4 hover:border-primary/50 transition-colors">
+                  <Zap className="w-6 h-6 text-secondary" />
+                  <div className="text-left">
+                    <p className="text-sm font-bold">Speech Recognition</p>
+                    <p className="text-[10px] text-muted-foreground">Web Speech API • NLP Patterns</p>
+                  </div>
+                </div>
+              </div>
+
+              <div className="hidden md:block">
+                <ArrowDown className="w-8 h-8 text-primary/40 -rotate-90" />
+              </div>
+
+              {/* Fusion Hub */}
+              <div className="flex flex-col items-center text-center group">
+                <div className="w-24 h-24 rounded-full bg-gradient-primary flex items-center justify-center shadow-glow-primary group-hover:scale-110 transition-transform">
+                  <Cpu className="w-12 h-12 text-white" />
+                </div>
+                <h4 className="font-bold mt-4">Fusion Engine</h4>
+                <p className="text-xs text-muted-foreground">Bayesian Scoring • EMA</p>
+              </div>
+
+              <div className="hidden md:block">
+                <ArrowDown className="w-8 h-8 text-primary/40 -rotate-90" />
+              </div>
+
+              {/* Output Node */}
+              <div className="flex flex-col items-center text-center group">
+                <div className="w-20 h-20 rounded-2xl bg-accent/20 flex items-center justify-center border border-accent/30 group-hover:scale-110 transition-transform">
+                  <BarChart3 className="w-10 h-10 text-accent" />
+                </div>
+                <h4 className="font-bold mt-4">Real-Time Feedback</h4>
+                <p className="text-xs text-muted-foreground">Analytics • Report Generation</p>
+              </div>
+            </div>
+          </div>
+
+          {/* Technical Details Grid */}
+          <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-6">
+            <Card className="p-6 bg-background/50 border-border hover:border-primary/30 transition-all">
+              <Brain className="w-10 h-10 text-primary mb-4" />
+              <h4 className="font-bold mb-2">Vision Tech</h4>
+              <p className="text-sm text-muted-foreground">
+                Uses MediaPipe for 468-point face mesh tracking and 33-point pose detection. Implements FACS (Facial Action Coding System) for micro-expression analysis.
+              </p>
+            </Card>
+
+            <Card className="p-6 bg-background/50 border-border hover:border-primary/30 transition-all">
+              <Activity className="w-10 h-10 text-accent mb-4" />
+              <h4 className="font-bold mb-2">Acoustic Analysis</h4>
+              <p className="text-sm text-muted-foreground">
+                Implements YIN algorithm for precise fundamental frequency tracking. Analyzes RMS energy for volume and SNR for speech clarity.
+              </p>
+            </Card>
+
+            <Card className="p-6 bg-background/50 border-border hover:border-primary/30 transition-all">
+              <Zap className="w-10 h-10 text-secondary mb-4" />
+              <h4 className="font-bold mb-2">Speech & NLP</h4>
+              <p className="text-sm text-muted-foreground">
+                Real-time lexical analysis using TF-IDF for keyword extraction and VADER sentiment analysis for emotional tone detection.
+              </p>
+            </Card>
+
+            <Card className="p-6 bg-background/50 border-border hover:border-primary/30 transition-all">
+              <Cpu className="w-10 h-10 text-primary mb-4" />
+              <h4 className="font-bold mb-2">Fusion Logic</h4>
+              <p className="text-sm text-muted-foreground">
+                Multi-layer weighted aggregation with adaptive temporal smoothing (EMA) to ensure stable and context-aware performance scoring.
+              </p>
+            </Card>
+          </div>
+        </section>
       </div>
     </div>
   );
