@@ -21,7 +21,7 @@ const Navigation = () => {
             <a href="#technology" className="text-sm text-muted-foreground hover:text-foreground transition-colors">
               Technology
             </a>
-            <a href="https://face-wise-test-main-aic6u9mda-sukanyaghosh685-3142s-projects.vercel.app" target="_blank" rel="noopener noreferrer" className="text-sm text-muted-foreground hover:text-foreground transition-colors">
+            <a href="https://hamii-technical-proctoredexam.vercel.app/" target="_blank" rel="noopener noreferrer" className="text-sm text-muted-foreground hover:text-foreground transition-colors">
               Proctored Exam
             </a>
             <Button size="sm" onClick={() => window.open("https://resumebasedinterview.vercel.app/", "_blank")} className="bg-primary hover:bg-primary/90 text-primary-foreground">
