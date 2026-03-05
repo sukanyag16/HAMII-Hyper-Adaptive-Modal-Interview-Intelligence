@@ -85,7 +85,7 @@ const InterviewModes = () => {
               </ul>
               <Button
                 className="w-full mt-4 bg-accent hover:bg-accent/90 text-accent-foreground"
-                onClick={() => window.open("https://face-wise-test-main-aic6u9mda-sukanyaghosh685-3142s-projects.vercel.app", "_blank")}
+                onClick={() => window.open("https://hamii-technical-proctoredexam.vercel.app/", "_blank")}
               >
                 Start Proctored Exam
                 <ArrowRight className="w-4 h-4 ml-2" />
