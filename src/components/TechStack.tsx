@@ -5,13 +5,13 @@ const technologies = [
   {
     category: "Frontend and Backend",
     icon: Code2,
-    items: ["React", "Vite", "TypeScript","Deno","Serverless Edge REST APIs","Google Gemini"],
+    items: ["React", "Vite", "TypeScript","Firebase","Serverless Edge REST APIs","Groq Llama-3 AI","Gemini AI"],
     color: "text-purple-400",
   },
   {
     category: "Computer Vision and AI Models",
     icon: Cpu,
-    items: ["MediaPipe Face/Pose/Iris","Gemini 2.5 Pro","Gemini 3 Flash Preview", "FACS"],
+    items: ["MediaPipe Face/Pose/Iris","Groq Llama-3 70B Model", "FACS"],
     color: "text-cyan-400",
   },
   {
@@ -23,7 +23,7 @@ const technologies = [
   {
     category: "NLP Models",
     icon: Shield,
-    items: ["TF-IDF Analysis", "VADER Sentiment", "Cosine Similarity"],
+    items: ["TF-IDF Analysis", "VADER Sentiment", "Cosine Similarity","NER-KE Proprietary Algorithm"],
     color: "text-orange-400",
   },
 ];
