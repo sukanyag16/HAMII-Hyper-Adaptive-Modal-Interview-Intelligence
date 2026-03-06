@@ -1,20 +1,27 @@
-import { Code2, Cpu, Database, Shield, Globe, Brain } from "lucide-react";
+import { Code2, Cpu, Database, Shield, Globe, Brain, Server } from "lucide-react";
 import { Card } from "@/components/ui/card";
 
 const technologies = [
   {
-    category: "Frontend and Backend",
+    category: "Frontend",
     icon: Code2,
     items: [
       "React",
       "Vite",
-      "TypeScript",
+      "TypeScript"
+    ],
+    color: "text-purple-400",
+  },
+  {
+    category: "Backend & AI Services",
+    icon: Server,
+    items: [
       "Firebase",
       "Serverless Edge REST APIs",
       "Groq Llama-3 AI",
       "Gemini AI"
     ],
-    color: "text-purple-400",
+    color: "text-indigo-400",
   },
   {
     category: "Computer Vision and AI Models",
@@ -64,11 +71,9 @@ const technologies = [
     category: "Algorithms & Data Processing",
     icon: Brain,
     items: [
-      "Fisher-Yates Shuffle Algorithm",
-      "Stratified Sampling",
-      "Weighted Penalty Scoring",
-      "Group-By Topic Analysis",
-      "Lookup Table Recommendation Engine"
+      "Bayesian Multi-Signal Proctoring Algorithm",
+      "Fusion Engine (Bayesian Scoring + Exponential Moving Average)",
+      "Multi-Modal Communication Coach (Bayesian Fusion)"
     ],
     color: "text-pink-400",
   },
