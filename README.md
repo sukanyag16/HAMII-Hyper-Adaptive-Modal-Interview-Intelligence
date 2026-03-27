@@ -9,7 +9,6 @@ HAMII is an advanced, AI-powered communication coaching platform designed to hel
 - **Context-Aware Coaching**: Tailored feedback based on user category (e.g., Job Seeker, Sales, Public Speaker).
 - **Proctored Exam Simulation**: Technical exam environment with AI monitoring.
 - **Privacy First**: All analysis is performed locally in the browser or via secure, isolated functions.
-- **Multi-Language Support**: Speech recognition and analysis for English, Hindi, and Telugu.
 
 ## 🛠️ Technology Stack
 
